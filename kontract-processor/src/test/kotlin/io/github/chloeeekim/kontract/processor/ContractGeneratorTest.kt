@@ -589,8 +589,29 @@ class ContractGeneratorTest {
                 validations = listOf(ValidationInfo.Pattern("[a-zA-Z,]+")))),
         )
 
-        assertContains(code, """if (fields != null && !fields.matches(Regex("[a-zA-Z,]+")))""")
+        assertContains(code, """if (fields != null && !fields.matches(fieldsPattern))""")
         assertContains(code, """"fields must match pattern: [a-zA-Z,]+"""")
+    }
+
+    @Test
+    fun `should precompile Regex as private val field`() {
+        val code = generate(
+            listOf(param("fields", "String", ParamSource.QUERY, nullable = true,
+                validations = listOf(ValidationInfo.Pattern("[a-zA-Z,]+")))),
+        )
+
+        assertContains(code, """private val fieldsPattern = Regex("[a-zA-Z,]+")""")
+        assertTrue(!code.contains("""Regex("[a-zA-Z,]+")""".let { "matches($it)" }))
+    }
+
+    @Test
+    fun `should not generate Regex field when no @Pattern validation`() {
+        val code = generate(
+            listOf(param("limit", "Int", ParamSource.QUERY,
+                validations = listOf(ValidationInfo.Min(1)))),
+        )
+
+        assertTrue(!code.contains("private val") || !code.contains("Pattern"))
     }
 
     @Test

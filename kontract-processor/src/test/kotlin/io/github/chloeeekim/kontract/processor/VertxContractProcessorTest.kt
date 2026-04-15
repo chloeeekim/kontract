@@ -416,9 +416,9 @@ class VertxContractProcessorTest {
         // @Min(1)
         assertContains(generated, "if (userId < 1)")
         assertContains(generated, """"userId must be >= 1""")
-        // @Pattern
-        assertContains(generated, """if (fields != null && !fields.matches(Regex("[a-zA-Z,]+")))""")
-        assertContains(generated, """"fields must match pattern: [a-zA-Z,]+"""")
+        // @Pattern — precompiled Regex
+        assertContains(generated, """private val fieldsPattern = Regex("[a-zA-Z,]+")""")
+        assertContains(generated, """if (fields != null && !fields.matches(fieldsPattern))""")
         // @Size
         assertContains(generated, "if (limit < 1 || limit > 100)")
         assertContains(generated, """"limit must be between 1 and 100""")

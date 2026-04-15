@@ -30,6 +30,10 @@ object ContractGenerator {
                 appendLine()
                 appendLine("    private val objectMapper = jacksonObjectMapper()")
             }
+            val regexFields = collectRegexFields(params)
+            for ((fieldName, regex) in regexFields) {
+                appendLine("    private val $fieldName = Regex(\"${escapeStringLiteral(regex)}\")")
+            }
             appendLine()
             appendLine("    fun from(ctx: RoutingContext): $className {")
             appendLine(parsingLines.prependIndent("        "))
@@ -63,6 +67,14 @@ object ContractGenerator {
             }
         }
         return imports
+    }
+
+    private fun collectRegexFields(params: List<ParamInfo>): List<Pair<String, String>> {
+        return params.flatMap { param ->
+            param.validations.filterIsInstance<ValidationInfo.Pattern>().map { pattern ->
+                "${param.name}Pattern" to pattern.regex
+            }
+        }
     }
 
     private fun generateRouteMethod(className: String, httpMethod: String, path: String): String {
@@ -295,13 +307,13 @@ object ContractGenerator {
                 is ValidationInfo.Size -> generateSizeValidation(param, validation)
 
                 is ValidationInfo.Pattern -> {
-                    val escapedRegex = validation.regex.replace("\\", "\\\\").replace("\"", "\\\"")
+                    val fieldName = "${name}Pattern"
                     if (nullCheck) {
-                        """if ($name != null && !$name.matches(Regex("$escapedRegex"))) {
+                        """if ($name != null && !$name.matches($fieldName)) {
     throw BadRequestException("$name must match pattern: ${validation.regex}")
 }"""
                     } else {
-                        """if (!$name.matches(Regex("$escapedRegex"))) {
+                        """if (!$name.matches($fieldName)) {
     throw BadRequestException("$name must match pattern: ${validation.regex}")
 }"""
                     }
