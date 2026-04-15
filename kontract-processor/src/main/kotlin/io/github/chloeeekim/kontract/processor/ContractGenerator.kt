@@ -93,6 +93,8 @@ object ContractGenerator {
         }
     }
 
+    internal val NO_BODY_STATUS_CODES = setOf(204, 205, 304)
+
     private fun generateTypedRouteMethod(
         className: String,
         responseSimpleName: String,
@@ -102,6 +104,21 @@ object ContractGenerator {
         serializerMode: SerializerMode,
     ): String {
         val routerMethod = httpMethod.lowercase()
+
+        if (statusCode in NO_BODY_STATUS_CODES) {
+            return """    fun routeWithResponse(router: Router, handler: ($className, RoutingContext) -> $responseSimpleName) {
+        router.$routerMethod("$path").handler { ctx ->
+            try {
+                val request = from(ctx)
+                handler(request, ctx)
+                ctx.response().setStatusCode($statusCode).end()
+            } catch (e: BadRequestException) {
+                ctx.response().setStatusCode(400).end(e.message)
+            }
+        }
+    }"""
+        }
+
         val serializeExpr = when (serializerMode) {
             SerializerMode.JACKSON -> "objectMapper.writeValueAsString(response)"
             SerializerMode.KOTLINX -> "Json.encodeToString(response)"

@@ -64,6 +64,14 @@ class VertxContractProcessor(
             )
         }
 
+        if (statusCode in ContractGenerator.NO_BODY_STATUS_CODES && responseType != null) {
+            logger.warn(
+                "statusCode $statusCode on ${classDecl.simpleName.asString()} does not allow a response body. " +
+                        "The response object will be ignored in routeWithResponse().",
+                classDecl,
+            )
+        }
+
         val params = classDecl.primaryConstructor?.parameters
             ?.map { extractParamInfo(it) }
             ?: emptyList()

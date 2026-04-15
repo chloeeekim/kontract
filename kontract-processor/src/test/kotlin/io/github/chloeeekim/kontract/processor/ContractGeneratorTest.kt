@@ -609,6 +609,40 @@ class ContractGeneratorTest {
         assertContains(code, "private val objectMapper = jacksonObjectMapper()")
     }
 
+    @Test
+    fun `should skip body serialization for 204 status code`() {
+        val code = ContractGenerator.generate(
+            packageName = "com.example",
+            className = "DeleteUserRequest",
+            httpMethod = "DELETE",
+            path = "/users/:id",
+            params = listOf(param("id", "Long", ParamSource.PATH)),
+            responseType = "com.example.EmptyResponse",
+            statusCode = 204,
+        )
+
+        assertContains(code, ".setStatusCode(204).end()")
+        assertTrue(!code.contains("writeValueAsString"))
+        assertTrue(!code.contains("encodeToString"))
+        assertTrue(!code.contains("Content-Type"))
+    }
+
+    @Test
+    fun `should skip body serialization for 304 status code`() {
+        val code = ContractGenerator.generate(
+            packageName = "com.example",
+            className = "CheckRequest",
+            httpMethod = "GET",
+            path = "/check",
+            params = listOf(param("id", "Long", ParamSource.QUERY)),
+            responseType = "com.example.CheckResponse",
+            statusCode = 304,
+        )
+
+        assertContains(code, ".setStatusCode(304).end()")
+        assertTrue(!code.contains("writeValueAsString"))
+    }
+
     // --- Validation ---
 
     @Test

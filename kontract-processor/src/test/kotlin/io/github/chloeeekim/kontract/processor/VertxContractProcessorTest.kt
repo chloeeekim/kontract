@@ -453,6 +453,31 @@ class VertxContractProcessorTest {
         assertTrue(!generated.contains("val response = handler"), "Should not contain response handler: $generated")
     }
 
+    @Test
+    fun `should skip body for 204 status code and warn`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            data class EmptyResponse(val ok: Boolean)
+
+            @VertxEndpoint(method = HttpMethod.DELETE, path = "/users/:id", response = EmptyResponse::class, statusCode = 204)
+            data class DeleteUserRequest(
+                @PathParam val id: Long,
+            )
+        """)
+
+        val (result, compilation) = compileWithResult(src)
+        val generated = findGeneratedSource(compilation, "DeleteUserRequestContract.kt")
+
+        // body 직렬화 없이 종료
+        assertContains(generated, ".setStatusCode(204).end()")
+        assertTrue(!generated.contains("writeValueAsString"))
+        // 경고 메시지
+        assertContains(result.messages, "statusCode 204 on DeleteUserRequest does not allow a response body")
+    }
+
     // --- Validation ---
 
     @Test
