@@ -514,6 +514,101 @@ class ContractGeneratorTest {
         assertContains(code, "import io.vertx.ext.web.Router")
     }
 
+    // --- Response type ---
+
+    @Test
+    fun `should generate typed route overload when response type specified`() {
+        val code = ContractGenerator.generate(
+            packageName = "com.example",
+            className = "GetUserRequest",
+            httpMethod = "GET",
+            path = "/users/:id",
+            params = listOf(param("id", "Long", ParamSource.PATH)),
+            responseType = "com.example.UserResponse",
+            statusCode = 200,
+        )
+
+        assertContains(code, "fun routeWithResponse(router: Router, handler: (GetUserRequest, RoutingContext) -> UserResponse)")
+        assertContains(code, "val response = handler(request, ctx)")
+        assertContains(code, ".setStatusCode(200)")
+        assertContains(code, """putHeader("Content-Type", "application/json")""")
+        assertContains(code, "objectMapper.writeValueAsString(response)")
+        // Unit overload
+        assertContains(code, "fun route(router: Router, handler: (GetUserRequest, RoutingContext) -> Unit)")
+    }
+
+    @Test
+    fun `should not generate typed route when no response type`() {
+        val code = generate(
+            listOf(param("id", "Long", ParamSource.PATH)),
+            path = "/test/:id",
+        )
+
+        assertTrue(!code.contains("-> UserResponse"))
+        assertTrue(!code.contains("writeValueAsString"))
+        // Unit overload
+        assertContains(code, "-> Unit)")
+    }
+
+    @Test
+    fun `should generate typed route with custom status code`() {
+        val code = ContractGenerator.generate(
+            packageName = "com.example",
+            className = "CreateUserRequest",
+            httpMethod = "POST",
+            path = "/users",
+            params = listOf(param("name", "String", ParamSource.QUERY)),
+            responseType = "com.example.UserResponse",
+            statusCode = 201,
+        )
+
+        assertContains(code, ".setStatusCode(201)")
+    }
+
+    @Test
+    fun `should generate typed route with kotlinx serialization`() {
+        val code = ContractGenerator.generate(
+            packageName = "com.example",
+            className = "GetUserRequest",
+            httpMethod = "GET",
+            path = "/users/:id",
+            params = listOf(param("id", "Long", ParamSource.PATH)),
+            serializerMode = SerializerMode.KOTLINX,
+            responseType = "com.example.UserResponse",
+        )
+
+        assertContains(code, "Json.encodeToString(response)")
+        assertTrue(!code.contains("objectMapper"))
+    }
+
+    @Test
+    fun `should import response type`() {
+        val code = ContractGenerator.generate(
+            packageName = "com.example",
+            className = "GetUserRequest",
+            httpMethod = "GET",
+            path = "/users/:id",
+            params = listOf(param("id", "Long", ParamSource.PATH)),
+            responseType = "com.example.UserResponse",
+        )
+
+        assertContains(code, "import com.example.UserResponse")
+    }
+
+    @Test
+    fun `should generate objectMapper when response type but no BodyParam`() {
+        val code = ContractGenerator.generate(
+            packageName = "com.example",
+            className = "GetUserRequest",
+            httpMethod = "GET",
+            path = "/users/:id",
+            params = listOf(param("id", "Long", ParamSource.PATH)),
+            responseType = "com.example.UserResponse",
+        )
+
+        assertContains(code, "private val objectMapper = jacksonObjectMapper()")
+    }
+
     // --- Validation ---
 
     @Test

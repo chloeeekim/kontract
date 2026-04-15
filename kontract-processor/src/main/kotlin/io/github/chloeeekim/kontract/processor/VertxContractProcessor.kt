@@ -43,6 +43,27 @@ class VertxContractProcessor(
             .first { it.name?.asString() == "path" }
             .value.toString()
 
+        val responseType = annotation.arguments
+            .firstOrNull { it.name?.asString() == "response" }
+            ?.value
+            ?.let { it as? com.google.devtools.ksp.symbol.KSType }
+            ?.let { type ->
+                val qualifiedName = type.declaration.qualifiedName?.asString()
+                // KSP2 resolves Nothing::class as java.lang.Void
+                if (qualifiedName in setOf("kotlin.Nothing", "java.lang.Void")) null else qualifiedName
+            }
+
+        val statusCode = annotation.arguments
+            .firstOrNull { it.name?.asString() == "statusCode" }
+            ?.value as? Int ?: 200
+
+        if (statusCode !in 100..599) {
+            logger.error(
+                "Invalid statusCode $statusCode on ${classDecl.simpleName.asString()}. HTTP status codes must be between 100 and 599.",
+                classDecl,
+            )
+        }
+
         val params = classDecl.primaryConstructor?.parameters
             ?.map { extractParamInfo(it) }
             ?: emptyList()
@@ -67,6 +88,8 @@ class VertxContractProcessor(
             path = path,
             params = params,
             serializerMode = serializerMode,
+            responseType = responseType,
+            statusCode = statusCode,
         )
 
         val file = codeGenerator.createNewFile(

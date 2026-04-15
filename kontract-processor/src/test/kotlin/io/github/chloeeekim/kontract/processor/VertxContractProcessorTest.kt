@@ -394,6 +394,65 @@ class VertxContractProcessorTest {
         assertContains(generated, "import com.example.TestType")
     }
 
+    // --- Response type ---
+
+    @Test
+    fun `should generate typed route when response specified`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            data class UserResponse(val id: Long, val name: String)
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "/users/:userId", response = UserResponse::class)
+            data class GetUserRequest(
+                @PathParam val userId: Long,
+            )
+        """)
+
+        val generated = compileAndFindSource(src, "GetUserRequestContract.kt")
+
+        assertContains(generated, "fun routeWithResponse(router: Router, handler: (GetUserRequest, RoutingContext) -> UserResponse)")
+        assertContains(generated, "objectMapper.writeValueAsString(response)")
+        assertContains(generated, ".setStatusCode(200)")
+        // Unit overload
+        assertContains(generated, "fun route(router: Router, handler: (GetUserRequest, RoutingContext) -> Unit)")
+    }
+
+    @Test
+    fun `should generate typed route with custom status code`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            data class UserResponse(val id: Long, val name: String)
+
+            @VertxEndpoint(method = HttpMethod.POST, path = "/users", response = UserResponse::class, statusCode = 201)
+            data class CreateUserRequest(
+                @QueryParam val name: String,
+            )
+        """)
+
+        val generated = compileAndFindSource(src, "CreateUserRequestContract.kt")
+
+        assertContains(generated, ".setStatusCode(201)")
+    }
+
+    @Test
+    fun `should not generate typed route when no response`() {
+        val generated = compileAndFindSource(
+            source("TestRequest", "@PathParam val id: Long,", path = "/test/:id"),
+            "TestRequestContract.kt",
+        )
+
+        assertContains(generated, "-> Unit)")
+        // If the response is not specified, the typed route should not be generated
+        assertTrue(!generated.contains("-> Nothing)"), "Should not contain Nothing typed route: $generated")
+        assertTrue(!generated.contains("val response = handler"), "Should not contain response handler: $generated")
+    }
+
     // --- Validation ---
 
     @Test

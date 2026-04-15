@@ -12,11 +12,16 @@ object ContractGenerator {
         path: String,
         params: List<ParamInfo>,
         serializerMode: SerializerMode = SerializerMode.JACKSON,
+        responseType: String? = null,
+        statusCode: Int = 200,
     ): String {
         val contractName = "${className}Contract"
         val parsingLines = params.joinToString("\n\n") { generateParamExtraction(it, serializerMode) }
         val constructorArgs = params.joinToString("\n") { "            ${it.name} = ${it.name}," }
-        val imports = collectImports(params, serializerMode)
+        val imports = collectImports(params, serializerMode, responseType)
+        val responseSimpleName = responseType?.substringAfterLast(".")
+        val needsObjectMapper = serializerMode == SerializerMode.JACKSON &&
+                (params.any { it.source == ParamSource.BODY } || responseType != null)
 
         return buildString {
             if (packageName.isNotEmpty()) {
@@ -26,7 +31,7 @@ object ContractGenerator {
             imports.sorted().forEach { appendLine("import $it") }
             appendLine()
             appendLine("object $contractName {")
-            if (params.any { it.source == ParamSource.BODY } && serializerMode == SerializerMode.JACKSON) {
+            if (needsObjectMapper) {
                 appendLine()
                 appendLine("    private val objectMapper = jacksonObjectMapper()")
             }
@@ -44,11 +49,15 @@ object ContractGenerator {
             appendLine("    }")
             appendLine()
             appendLine(generateRouteMethod(className, httpMethod, path))
+            if (responseSimpleName != null) {
+                appendLine()
+                appendLine(generateTypedRouteMethod(className, responseSimpleName, httpMethod, path, statusCode, serializerMode))
+            }
             appendLine("}")
         }
     }
 
-    private fun collectImports(params: List<ParamInfo>, serializerMode: SerializerMode): Set<String> {
+    private fun collectImports(params: List<ParamInfo>, serializerMode: SerializerMode, responseType: String? = null): Set<String> {
         val imports = mutableSetOf(
             "io.github.chloeeekim.kontract.annotation.BadRequestException",
             "io.vertx.ext.web.Router",
@@ -66,6 +75,13 @@ object ContractGenerator {
                 }
             }
         }
+        if (responseType != null) {
+            imports.add(responseType)
+            when (serializerMode) {
+                SerializerMode.JACKSON -> imports.add("com.fasterxml.jackson.module.kotlin.jacksonObjectMapper")
+                SerializerMode.KOTLINX -> imports.add("kotlinx.serialization.json.Json")
+            }
+        }
         return imports
     }
 
@@ -75,6 +91,35 @@ object ContractGenerator {
                 "${param.name}Pattern" to pattern.regex
             }
         }
+    }
+
+    private fun generateTypedRouteMethod(
+        className: String,
+        responseSimpleName: String,
+        httpMethod: String,
+        path: String,
+        statusCode: Int,
+        serializerMode: SerializerMode,
+    ): String {
+        val routerMethod = httpMethod.lowercase()
+        val serializeExpr = when (serializerMode) {
+            SerializerMode.JACKSON -> "objectMapper.writeValueAsString(response)"
+            SerializerMode.KOTLINX -> "Json.encodeToString(response)"
+        }
+        return """    fun routeWithResponse(router: Router, handler: ($className, RoutingContext) -> $responseSimpleName) {
+        router.$routerMethod("$path").handler { ctx ->
+            try {
+                val request = from(ctx)
+                val response = handler(request, ctx)
+                ctx.response()
+                    .setStatusCode($statusCode)
+                    .putHeader("Content-Type", "application/json")
+                    .end($serializeExpr)
+            } catch (e: BadRequestException) {
+                ctx.response().setStatusCode(400).end(e.message)
+            }
+        }
+    }"""
     }
 
     private fun generateRouteMethod(className: String, httpMethod: String, path: String): String {
