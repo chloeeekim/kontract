@@ -394,6 +394,101 @@ class VertxContractProcessorTest {
         assertContains(generated, "import com.example.TestType")
     }
 
+    // --- Validation ---
+
+    @Test
+    fun `should generate validation code matching design doc example`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "/users/:userId")
+            data class GetUserRequest(
+                @PathParam @Min(1) val userId: Long,
+                @QueryParam @Pattern("[a-zA-Z,]+") val fields: String? = null,
+                @QueryParam @Size(min = 1, max = 100) val limit: Int = 20,
+            )
+        """)
+
+        val generated = compileAndFindSource(src, "GetUserRequestContract.kt")
+
+        // @Min(1)
+        assertContains(generated, "if (userId < 1)")
+        assertContains(generated, """"userId must be >= 1""")
+        // @Pattern
+        assertContains(generated, """if (fields != null && !fields.matches(Regex("[a-zA-Z,]+")))""")
+        assertContains(generated, """"fields must match pattern: [a-zA-Z,]+"""")
+        // @Size
+        assertContains(generated, "if (limit < 1 || limit > 100)")
+        assertContains(generated, """"limit must be between 1 and 100""")
+    }
+
+    @Test
+    fun `should generate @NotBlank and @Max validation`() {
+        val generated = compileAndFindSource(
+            source("TestRequest", """
+                @QueryParam @NotBlank val name: String,
+                @QueryParam @Max(1000) val limit: Long,
+            """),
+            "TestRequestContract.kt",
+        )
+
+        assertContains(generated, """if (name.isNullOrBlank())""")
+        assertContains(generated, """"name must not be blank"""")
+        assertContains(generated, """if (limit > 1000)""")
+        assertContains(generated, """"limit must be <= 1000""")
+    }
+
+    @Test
+    fun `should generate @Size validation for String using length`() {
+        val generated = compileAndFindSource(
+            source("TestRequest", """@QueryParam @Size(min = 1, max = 50) val name: String,"""),
+            "TestRequestContract.kt",
+        )
+
+        assertContains(generated, "name.length < 1 || name.length > 50")
+        assertContains(generated, """"name length must be between 1 and 50""")
+    }
+
+    @Test
+    fun `should error when @Min is used on String`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "/test")
+            data class TestRequest(
+                @QueryParam @Min(1) val name: String,
+            )
+        """)
+
+        val (result, _) = compileWithResult(src)
+
+        assertContains(result.messages, "@Min is only valid for Int or Long types, but 'name' is String")
+    }
+
+    @Test
+    fun `should error when @Pattern is used on Long`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "/test")
+            data class TestRequest(
+                @QueryParam @Pattern("[0-9]+") val id: Long,
+            )
+        """)
+
+        val (result, _) = compileWithResult(src)
+
+        assertContains(result.messages, "@Pattern is only valid for String types, but 'id' is Long")
+    }
+
+    // --- Serialization ---
+
     @Test
     fun `should generate kotlinx serialization when KSP option is set`() {
         val src = SourceFile.kotlin("TestRequest.kt", """
@@ -415,7 +510,7 @@ class VertxContractProcessorTest {
             configureKsp(useKsp2 = true) {
                 symbolProcessorProviders += VertxContractProcessorProvider()
             }
-            kspProcessorOptions = mutableMapOf("vertx.contract.serializer" to "kotlinx")
+            kspProcessorOptions = mutableMapOf("kontract.serializer" to "kotlinx")
         }
         compilation.compile()
         val generated = findGeneratedSource(compilation, "TestRequestContract.kt")

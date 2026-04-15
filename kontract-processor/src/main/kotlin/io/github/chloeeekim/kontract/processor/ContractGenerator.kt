@@ -82,13 +82,17 @@ object ContractGenerator {
     private fun generateParamExtraction(param: ParamInfo, serializerMode: SerializerMode): String {
         val paramName = param.annotationName.ifEmpty { param.name }
 
-        return when (param.source) {
+        val parsing = when (param.source) {
             ParamSource.PATH -> generatePathParamParsing(param, paramName)
             ParamSource.QUERY -> generateQueryParamParsing(param, paramName)
             ParamSource.HEADER -> generateHeaderParamParsing(param, paramName)
             ParamSource.COOKIE -> generateCookieParamParsing(param, paramName)
             ParamSource.BODY -> generateBodyParamParsing(param, serializerMode)
         }
+
+        val validationLines = generateValidation(param)
+        return if (validationLines.isEmpty()) parsing else "$parsing\n$validationLines"
+
     }
 
     private fun escapeStringLiteral(value: String): String {
@@ -249,6 +253,88 @@ object ContractGenerator {
     $parser
 }
     $fallback""".trimEnd()
+        }
+    }
+
+    // --- Validation ---
+
+    private fun generateValidation(param: ParamInfo): String {
+        if (param.validations.isEmpty()) return ""
+
+        return param.validations.joinToString("\n") { validation ->
+            val name = param.name
+            val nullCheck = param.nullable
+
+            when (validation) {
+                is ValidationInfo.Min -> if (nullCheck) {
+                    """if ($name != null && $name < ${validation.value}) {
+    throw BadRequestException("$name must be >= ${validation.value}, but was $$name")
+}"""
+                } else {
+                    """if ($name < ${validation.value}) {
+    throw BadRequestException("$name must be >= ${validation.value}, but was $$name")
+}"""
+                }
+
+                is ValidationInfo.Max -> if (nullCheck) {
+                    """if ($name != null && $name > ${validation.value}) {
+    throw BadRequestException("$name must be <= ${validation.value}, but was $$name")
+}"""
+                } else {
+                    """if ($name > ${validation.value}) {
+    throw BadRequestException("$name must be <= ${validation.value}, but was $$name")
+}"""
+                }
+
+                is ValidationInfo.NotBlank -> {
+                    """if ($name.isNullOrBlank()) {
+    throw BadRequestException("$name must not be blank")
+}"""
+                }
+
+                is ValidationInfo.Size -> generateSizeValidation(param, validation)
+
+                is ValidationInfo.Pattern -> {
+                    val escapedRegex = validation.regex.replace("\\", "\\\\").replace("\"", "\\\"")
+                    if (nullCheck) {
+                        """if ($name != null && !$name.matches(Regex("$escapedRegex"))) {
+    throw BadRequestException("$name must match pattern: ${validation.regex}")
+}"""
+                    } else {
+                        """if (!$name.matches(Regex("$escapedRegex"))) {
+    throw BadRequestException("$name must match pattern: ${validation.regex}")
+}"""
+                    }
+                }
+            }
+        }
+    }
+
+    private fun generateSizeValidation(param: ParamInfo, validation: ValidationInfo.Size): String {
+        val name = param.name
+        val isString = param.typeName == "String"
+
+        return if (isString) {
+            val accessor = "$name.length"
+            if (param.nullable) {
+                """if ($name != null && ($accessor < ${validation.min} || $accessor > ${validation.max})) {
+    throw BadRequestException("$name length must be between ${validation.min} and ${validation.max}, but was $$accessor")
+}"""
+            } else {
+                """if ($accessor < ${validation.min} || $accessor > ${validation.max}) {
+    throw BadRequestException("$name length must be between ${validation.min} and ${validation.max}, but was $$accessor")
+}"""
+            }
+        } else {
+            if (param.nullable) {
+                """if ($name != null && ($name < ${validation.min} || $name > ${validation.max})) {
+    throw BadRequestException("$name must be between ${validation.min} and ${validation.max}, but was $$name")
+}"""
+            } else {
+                """if ($name < ${validation.min} || $name > ${validation.max}) {
+    throw BadRequestException("$name must be between ${validation.min} and ${validation.max}, but was $$name")
+}"""
+            }
         }
     }
 }

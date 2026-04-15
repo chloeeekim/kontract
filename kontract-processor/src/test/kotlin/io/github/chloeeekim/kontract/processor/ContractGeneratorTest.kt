@@ -16,6 +16,7 @@ class ContractGeneratorTest {
         isEnum: Boolean = false,
         enumIgnoreCase: Boolean = false,
         qualifiedTypeName: String = typeName,
+        validations: List<ValidationInfo> = emptyList(),
     ) = ParamInfo(
         name = name,
         typeName = typeName,
@@ -26,6 +27,7 @@ class ContractGeneratorTest {
         defaultValue = defaultValue,
         isEnum = isEnum,
         enumIgnoreCase = enumIgnoreCase,
+        validations = validations,
     )
 
     private fun generate(params: List<ParamInfo>, className: String = "TestRequest", path: String = "/test") =
@@ -510,5 +512,105 @@ class ContractGeneratorTest {
         )
 
         assertContains(code, "import io.vertx.ext.web.Router")
+    }
+
+    // --- Validation ---
+
+    @Test
+    fun `should generate @Min validation`() {
+        val code = generate(
+            listOf(param("userId", "Long", ParamSource.PATH,
+                validations = listOf(ValidationInfo.Min(1)))),
+            path = "/users/:userId",
+        )
+
+        assertContains(code, """if (userId < 1)""")
+        assertContains(code, """"userId must be >= 1, but was ${'$'}userId"""")
+    }
+
+    @Test
+    fun `should generate @Max validation`() {
+        val code = generate(
+            listOf(param("limit", "Int", ParamSource.QUERY,
+                validations = listOf(ValidationInfo.Max(100)))),
+        )
+
+        assertContains(code, """if (limit > 100)""")
+        assertContains(code, """"limit must be <= 100, but was ${'$'}limit"""")
+    }
+
+    @Test
+    fun `should generate @NotBlank validation`() {
+        val code = generate(
+            listOf(param("name", "String", ParamSource.QUERY,
+                validations = listOf(ValidationInfo.NotBlank))),
+        )
+
+        assertContains(code, """if (name.isNullOrBlank())""")
+        assertContains(code, """"name must not be blank"""")
+    }
+
+    @Test
+    fun `should generate @Size validation`() {
+        val code = generate(
+            listOf(param("limit", "Int", ParamSource.QUERY,
+                validations = listOf(ValidationInfo.Size(1, 100)))),
+        )
+
+        assertContains(code, """if (limit < 1 || limit > 100)""")
+        assertContains(code, """"limit must be between 1 and 100, but was ${'$'}limit"""")
+    }
+
+    @Test
+    fun `should generate @Size validation for String using length`() {
+        val code = generate(
+            listOf(param("name", "String", ParamSource.QUERY,
+                validations = listOf(ValidationInfo.Size(1, 50)))),
+        )
+
+        assertContains(code, """if (name.length < 1 || name.length > 50)""")
+        assertContains(code, """"name length must be between 1 and 50""")
+    }
+
+    @Test
+    fun `should generate nullable @Size validation for String`() {
+        val code = generate(
+            listOf(param("name", "String", ParamSource.QUERY, nullable = true,
+                validations = listOf(ValidationInfo.Size(1, 50)))),
+        )
+
+        assertContains(code, """if (name != null && (name.length < 1 || name.length > 50))""")
+    }
+
+    @Test
+    fun `should generate @Pattern validation`() {
+        val code = generate(
+            listOf(param("fields", "String", ParamSource.QUERY, nullable = true,
+                validations = listOf(ValidationInfo.Pattern("[a-zA-Z,]+")))),
+        )
+
+        assertContains(code, """if (fields != null && !fields.matches(Regex("[a-zA-Z,]+")))""")
+        assertContains(code, """"fields must match pattern: [a-zA-Z,]+"""")
+    }
+
+    @Test
+    fun `should generate nullable @Min validation with null check`() {
+        val code = generate(
+            listOf(param("score", "Int", ParamSource.QUERY, nullable = true,
+                validations = listOf(ValidationInfo.Min(0)))),
+        )
+
+        assertContains(code, """if (score != null && score < 0)""")
+    }
+
+    @Test
+    fun `should generate multiple validations`() {
+        val code = generate(
+            listOf(param("limit", "Int", ParamSource.QUERY,
+                validations = listOf(ValidationInfo.Min(1), ValidationInfo.Max(100)))),
+        )
+
+        assertContains(code, """if (limit < 1)""")
+        assertContains(code, """if (limit > 100)""")
     }
 }

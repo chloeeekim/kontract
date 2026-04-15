@@ -10,4 +10,5 @@ data class ParamInfo(
     val defaultValue: String? = null,
     val isEnum: Boolean = false,
     val enumIgnoreCase: Boolean = false,
+    val validations: List<ValidationInfo> = emptyList(),
 )

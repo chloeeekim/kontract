@@ -146,6 +146,8 @@ class VertxContractProcessor(
 
         validateDefaultValue(param, typeName, defaultValue, isEnum, typeDecl)
 
+        val validations = extractValidations(param)
+
         return ParamInfo(
             name = param.name!!.asString(),
             typeName = typeName,
@@ -156,7 +158,59 @@ class VertxContractProcessor(
             defaultValue = defaultValue,
             isEnum = isEnum,
             enumIgnoreCase = enumIgnoreCase,
+            validations = validations,
         )
+    }
+
+    private fun extractValidations(param: KSValueParameter): List<ValidationInfo> {
+        val resolvedType = param.type.resolve()
+        val typeName = resolvedType.declaration.simpleName.asString()
+        val baseTypeName = if (resolvedType.isMarkedNullable) typeName else typeName
+        val numericTypes = setOf("Int", "Long")
+        val stringTypes = setOf("String")
+        val paramName = param.name?.asString() ?: "unknown"
+
+        val validations = mutableListOf<ValidationInfo>()
+        for (annotation in param.annotations) {
+            when (annotation.shortName.asString()) {
+                "Min" -> {
+                    if (baseTypeName !in numericTypes) {
+                        logger.error("@Min is only valid for Int or Long types, but '$paramName' is $typeName.", param)
+                    }
+                    val value = annotation.arguments.first { it.name?.asString() == "value" }.value as Long
+                    validations.add(ValidationInfo.Min(value))
+                }
+                "Max" -> {
+                    if (baseTypeName !in numericTypes) {
+                        logger.error("@Max is only valid for Int or Long types, but '$paramName' is $typeName.", param)
+                    }
+                    val value = annotation.arguments.first { it.name?.asString() == "value" }.value as Long
+                    validations.add(ValidationInfo.Max(value))
+                }
+                "NotBlank" -> {
+                    if (baseTypeName !in stringTypes) {
+                        logger.error("@NotBlank is only valid for String types, but '$paramName' is $typeName.", param)
+                    }
+                    validations.add(ValidationInfo.NotBlank)
+                }
+                "Size" -> {
+                    if (baseTypeName !in numericTypes + stringTypes) {
+                        logger.error("@Size is only valid for Int, Long, or String types, but '$paramName' is $typeName.", param)
+                    }
+                    val min = annotation.arguments.first { it.name?.asString() == "min" }.value as Int
+                    val max = annotation.arguments.first { it.name?.asString() == "max" }.value as Int
+                    validations.add(ValidationInfo.Size(min, max))
+                }
+                "Pattern" -> {
+                    if (baseTypeName !in stringTypes) {
+                        logger.error("@Pattern is only valid for String types, but '$paramName' is $typeName.", param)
+                    }
+                    val regex = annotation.arguments.first { it.name?.asString() == "regex" }.value as String
+                    validations.add(ValidationInfo.Pattern(regex))
+                }
+            }
+        }
+        return validations
     }
 
     private fun validateDefaultValue(
