@@ -388,6 +388,38 @@ class ContractGeneratorTest {
         assertContains(code, "import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper")
     }
 
+    @Test
+    fun `should generate body param with kotlinx serialization`() {
+        val code = ContractGenerator.generate(
+            packageName = "com.example",
+            className = "TestRequest",
+            httpMethod = "POST",
+            path = "/test",
+            params = listOf(param("body", "AuthPayload", ParamSource.BODY, qualifiedTypeName = "com.example.AuthPayload")),
+            serializerMode = SerializerMode.KOTLINX,
+        )
+
+        assertContains(code, "Json.decodeFromString<AuthPayload>(ctx.body().asString())")
+        assertContains(code, "import kotlinx.serialization.json.Json")
+        assertContains(code, "// AuthPayload must be annotated with @kotlinx.serialization.Serializable")
+        assertTrue(!code.contains("objectMapper"))
+        assertTrue(!code.contains("jacksonObjectMapper"))
+    }
+
+    @Test
+    fun `should not generate objectMapper field when using kotlinx`() {
+        val code = ContractGenerator.generate(
+            packageName = "com.example",
+            className = "TestRequest",
+            httpMethod = "POST",
+            path = "/test",
+            params = listOf(param("body", "AuthPayload", ParamSource.BODY, qualifiedTypeName = "com.example.AuthPayload")),
+            serializerMode = SerializerMode.KOTLINX,
+        )
+
+        assertTrue(!code.contains("private val objectMapper"))
+    }
+
     // --- route() method ---
 
     @Test

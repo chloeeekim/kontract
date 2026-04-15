@@ -14,6 +14,7 @@ import com.google.devtools.ksp.validate
 class VertxContractProcessor(
     private val codeGenerator: CodeGenerator,
     private val logger: KSPLogger,
+    private val serializerMode: SerializerMode = SerializerMode.JACKSON,
 ) : SymbolProcessor {
 
     override fun process(resolver: Resolver): List<KSAnnotated> {
@@ -65,6 +66,7 @@ class VertxContractProcessor(
             httpMethod = method,
             path = path,
             params = params,
+            serializerMode = serializerMode,
         )
 
         val file = codeGenerator.createNewFile(
@@ -116,6 +118,14 @@ class VertxContractProcessor(
 
         val enumIgnoreCase = param.annotations
             .any { it.shortName.asString() == "EnumIgnoreCase" }
+
+        if (defaultValue != null && source == ParamSource.BODY) {
+            logger.warn(
+                "@Default on @BodyParam '${param.name?.asString()}' is ignored. " +
+                        "Body parameters are deserialized from the request body and cannot have a default value.",
+                param,
+            )
+        }
 
         if (defaultValue != null && source == ParamSource.PATH) {
             logger.warn(

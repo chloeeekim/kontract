@@ -4,6 +4,7 @@ import com.tschuchort.compiletesting.JvmCompilationResult
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
 import com.tschuchort.compiletesting.configureKsp
+import com.tschuchort.compiletesting.kspProcessorOptions
 import com.tschuchort.compiletesting.kspSourcesDir
 import org.junit.jupiter.api.Test
 import kotlin.test.assertContains
@@ -391,6 +392,57 @@ class VertxContractProcessorTest {
         val generated = compileAndFindSource(src, "TestRequestContract.kt")
 
         assertContains(generated, "import com.example.TestType")
+    }
+
+    @Test
+    fun `should generate kotlinx serialization when KSP option is set`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            data class Payload(val data: String)
+
+            @VertxEndpoint(method = HttpMethod.POST, path = "/test")
+            data class TestRequest(
+                @BodyParam val body: Payload,
+            )
+        """)
+
+        val compilation = KotlinCompilation().apply {
+            sources = listOf(src)
+            inheritClassPath = true
+            configureKsp(useKsp2 = true) {
+                symbolProcessorProviders += VertxContractProcessorProvider()
+            }
+            kspProcessorOptions = mutableMapOf("vertx.contract.serializer" to "kotlinx")
+        }
+        compilation.compile()
+        val generated = findGeneratedSource(compilation, "TestRequestContract.kt")
+
+        assertContains(generated, "Json.decodeFromString<Payload>(ctx.body().asString())")
+        assertContains(generated, "import kotlinx.serialization.json.Json")
+        assertTrue(!generated.contains("objectMapper"))
+    }
+
+    @Test
+    fun `should warn when @Default is used on @BodyParam`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            data class Payload(val data: String)
+
+            @VertxEndpoint(method = HttpMethod.POST, path = "/test")
+            data class TestRequest(
+                @BodyParam @Default("{}") val body: Payload,
+            )
+        """)
+
+        val (result, _) = compileWithResult(src)
+
+        assertContains(result.messages, "@Default on @BodyParam 'body' is ignored")
     }
 
     // --- helpers ---

@@ -11,11 +11,12 @@ object ContractGenerator {
         httpMethod: String,
         path: String,
         params: List<ParamInfo>,
+        serializerMode: SerializerMode = SerializerMode.JACKSON,
     ): String {
         val contractName = "${className}Contract"
-        val parsingLines = params.joinToString("\n\n") { generateParamExtraction(it) }
+        val parsingLines = params.joinToString("\n\n") { generateParamExtraction(it, serializerMode) }
         val constructorArgs = params.joinToString("\n") { "            ${it.name} = ${it.name}," }
-        val imports = collectImports(params)
+        val imports = collectImports(params, serializerMode)
 
         return buildString {
             if (packageName.isNotEmpty()) {
@@ -25,7 +26,7 @@ object ContractGenerator {
             imports.sorted().forEach { appendLine("import $it") }
             appendLine()
             appendLine("object $contractName {")
-            if (params.any { it.source == ParamSource.BODY }) {
+            if (params.any { it.source == ParamSource.BODY } && serializerMode == SerializerMode.JACKSON) {
                 appendLine()
                 appendLine("    private val objectMapper = jacksonObjectMapper()")
             }
@@ -43,7 +44,7 @@ object ContractGenerator {
         }
     }
 
-    private fun collectImports(params: List<ParamInfo>): Set<String> {
+    private fun collectImports(params: List<ParamInfo>, serializerMode: SerializerMode): Set<String> {
         val imports = mutableSetOf(
             "io.github.chloeeekim.kontract.annotation.BadRequestException",
             "io.vertx.ext.web.Router",
@@ -55,7 +56,10 @@ object ContractGenerator {
             }
             if (param.source == ParamSource.BODY) {
                 imports.add(param.qualifiedTypeName)
-                imports.add("com.fasterxml.jackson.module.kotlin.jacksonObjectMapper")
+                when (serializerMode) {
+                    SerializerMode.JACKSON -> imports.add("com.fasterxml.jackson.module.kotlin.jacksonObjectMapper")
+                    SerializerMode.KOTLINX -> imports.add("kotlinx.serialization.json.Json")
+                }
             }
         }
         return imports
@@ -75,7 +79,7 @@ object ContractGenerator {
     }"""
     }
 
-    private fun generateParamExtraction(param: ParamInfo): String {
+    private fun generateParamExtraction(param: ParamInfo, serializerMode: SerializerMode): String {
         val paramName = param.annotationName.ifEmpty { param.name }
 
         return when (param.source) {
@@ -83,7 +87,7 @@ object ContractGenerator {
             ParamSource.QUERY -> generateQueryParamParsing(param, paramName)
             ParamSource.HEADER -> generateHeaderParamParsing(param, paramName)
             ParamSource.COOKIE -> generateCookieParamParsing(param, paramName)
-            ParamSource.BODY -> generateBodyParamParsing(param)
+            ParamSource.BODY -> generateBodyParamParsing(param, serializerMode)
         }
     }
 
@@ -139,7 +143,6 @@ object ContractGenerator {
         return generateTypedParsing(param, paramName, extractor, "cookie")
     }
 
-
     // --- Common typed parsing (shared by Path, Query, Header, Cookie) ---
 
     private fun generateTypedParsing(param: ParamInfo, paramName: String, extractor: String, paramKind: String): String {
@@ -171,10 +174,19 @@ object ContractGenerator {
 
     // --- Body Param ---
 
-    private fun generateBodyParamParsing(param: ParamInfo): String {
+    private fun generateBodyParamParsing(param: ParamInfo, serializerMode: SerializerMode): String {
         val typeName = param.typeName
-        return """val ${param.name} = try {
-    objectMapper.readValue(ctx.body().buffer().bytes, $typeName::class.java)
+        val deserializeExpr = when (serializerMode) {
+            SerializerMode.JACKSON -> "objectMapper.readValue(ctx.body().buffer().bytes, $typeName::class.java)"
+            SerializerMode.KOTLINX -> "Json.decodeFromString<$typeName>(ctx.body().asString())"
+        }
+        val comment = if (serializerMode == SerializerMode.KOTLINX) {
+            "// $typeName must be annotated with @kotlinx.serialization.Serializable\n"
+        } else {
+            ""
+        }
+        return """${comment}val ${param.name} = try {
+    $deserializeExpr
 } catch (e: Exception) {
     throw BadRequestException("Invalid request body: ${'$'}{e.message}")
 }"""
