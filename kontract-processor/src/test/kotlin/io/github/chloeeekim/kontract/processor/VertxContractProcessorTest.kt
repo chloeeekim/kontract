@@ -1,0 +1,440 @@
+package io.github.chloeeekim.kontract.processor
+
+import com.tschuchort.compiletesting.JvmCompilationResult
+import com.tschuchort.compiletesting.KotlinCompilation
+import com.tschuchort.compiletesting.SourceFile
+import com.tschuchort.compiletesting.configureKsp
+import com.tschuchort.compiletesting.kspSourcesDir
+import org.junit.jupiter.api.Test
+import kotlin.test.assertContains
+import kotlin.test.assertTrue
+
+class VertxContractProcessorTest {
+
+    @Test
+    fun `should generate contract for simple GET endpoint`() {
+        val generated = compileAndFindSource(
+            source("GetUserRequest", """
+                @PathParam val userId: Long,
+                @QueryParam val fields: String? = null,
+            """, path = "/users/:userId"),
+            "GetUserRequestContract.kt",
+        )
+
+        assertContains(generated, "object GetUserRequestContract")
+        assertContains(generated, "fun from(ctx: RoutingContext): GetUserRequest")
+        assertContains(generated, """ctx.pathParam("userId")?.let { raw ->""")
+        assertContains(generated, """ctx.request().getParam("fields")""")
+    }
+
+    @Test
+    fun `should generate contract with Int path param`() {
+        val generated = compileAndFindSource(
+            source("PageRequest", "@PathParam val page: Int,", path = "/pages/:page"),
+            "PageRequestContract.kt",
+        )
+
+        assertContains(generated, """ctx.pathParam("page")?.let { raw ->""")
+        assertContains(generated, "raw.toIntOrNull()")
+    }
+
+    @Test
+    fun `should generate contract with custom param name`() {
+        val generated = compileAndFindSource(
+            source("UserRequest", """@PathParam(name = "userId") val user: Long,""", path = "/users/:userId"),
+            "UserRequestContract.kt",
+        )
+
+        assertContains(generated, """ctx.pathParam("userId")?.let { raw ->""")
+        assertContains(generated, "user = user,")
+    }
+
+    @Test
+    fun `should generate contract with required query param`() {
+        val generated = compileAndFindSource(
+            source("ItemRequest", "@QueryParam val type: String,", path = "/items"),
+            "ItemRequestContract.kt",
+        )
+
+        assertContains(generated, """throw BadRequestException("Missing query param: type")""")
+    }
+
+    @Test
+    fun `should generate contract with multiple params`() {
+        val generated = compileAndFindSource(
+            source("GetUserPartialRequest", """
+                @PathParam val userId: Long,
+                @QueryParam val fields: String? = null,
+                @QueryParam val fieldNames: String? = null,
+            """, path = "/users/:userId/partial"),
+            "GetUserPartialRequestContract.kt",
+        )
+
+        assertContains(generated, "object GetUserPartialRequestContract")
+        assertContains(generated, """ctx.pathParam("userId")""")
+        assertContains(generated, """ctx.request().getParam("fields")""")
+        assertContains(generated, """ctx.request().getParam("fieldNames")""")
+    }
+
+    @Test
+    fun `should include correct package and imports`() {
+        val generated = compileAndFindSource(
+            source("TestRequest", "@PathParam val id: Long,", path = "/test/:id"),
+            "TestRequestContract.kt",
+        )
+
+        assertContains(generated, "package com.example")
+        assertContains(generated, "import io.github.chloeeekim.kontract.annotation.BadRequestException")
+        assertContains(generated, "import io.vertx.ext.web.RoutingContext")
+    }
+
+    @Test
+    fun `should generate contract with @Default values`() {
+        val generated = compileAndFindSource(
+            source("ListUsersRequest", """
+                @QueryParam @Default("1") val page: Int = 1,
+                @QueryParam @Default("20") val limit: Int = 20,
+                @QueryParam val fields: String? = null,
+                @QueryParam val type: String,
+            """, path = "/users"),
+            "ListUsersRequestContract.kt",
+        )
+
+        assertContains(generated, "?: 1")
+        assertContains(generated, "?: 20")
+        assertTrue(!generated.contains("""throw BadRequestException("Missing query param: fields")"""))
+        assertContains(generated, """throw BadRequestException("Missing query param: type")""")
+    }
+
+    @Test
+    fun `should warn when @Default is used on PathParam`() {
+        val (result, _) = compileWithResult(
+            source("UserRequest", """@PathParam @Default("1") val userId: Long = 1,""", path = "/users/:userId"),
+        )
+
+        assertContains(result.messages, "@Default on @PathParam 'userId' is discouraged")
+    }
+
+    @Test
+    fun `should generate contract with nullable + @Default combo`() {
+        val generated = compileAndFindSource(
+            source("ItemRequest", """@QueryParam @Default("20") val limit: Int? = 20,""", path = "/items"),
+            "ItemRequestContract.kt",
+        )
+
+        assertContains(generated, "?: 20")
+    }
+
+    // --- Enum tests ---
+
+    @Test
+    fun `should generate contract with required enum param`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            enum class TestType { T1, T2, T3 }
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "/test")
+            data class TestRequest(
+                @QueryParam val type: TestType,
+            )
+        """)
+
+        val generated = compileAndFindSource(src, "TestRequestContract.kt")
+
+        assertContains(generated, "TestType.valueOf(raw)")
+        assertContains(generated, """throw BadRequestException("Missing query param: type")""")
+        assertContains(generated, "TestType.entries.joinToString()")
+    }
+
+    @Test
+    fun `should generate contract with nullable enum param`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            enum class TestType { T1, T2, T3 }
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "/test")
+            data class TestRequest(
+                @QueryParam val type: TestType? = null,
+            )
+        """)
+
+        val generated = compileAndFindSource(src, "TestRequestContract.kt")
+
+        assertContains(generated, "TestType.valueOf(raw)")
+        assertTrue(!generated.contains("Missing query param"))
+    }
+
+    @Test
+    fun `should generate contract with @EnumIgnoreCase`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            enum class TestType { T1, T2, T3 }
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "/test")
+            data class TestRequest(
+                @QueryParam @EnumIgnoreCase val type: TestType? = null,
+            )
+        """)
+
+        val generated = compileAndFindSource(src, "TestRequestContract.kt")
+
+        assertContains(generated, "TestType.entries.firstOrNull { it.name.equals(raw, ignoreCase = true) }")
+        assertTrue(!generated.contains("valueOf"))
+    }
+
+    @Test
+    fun `should generate contract with enum + @Default`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            enum class SortOrder { ASC, DESC }
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "/items")
+            data class ItemRequest(
+                @QueryParam @Default("SortOrder.ASC") val sort: SortOrder = SortOrder.ASC,
+            )
+        """)
+
+        val generated = compileAndFindSource(src, "ItemRequestContract.kt")
+
+        assertContains(generated, "SortOrder.valueOf(raw)")
+        assertContains(generated, "?: com.example.SortOrder.ASC")
+    }
+
+    @Test
+    fun `should generate contract with mixed enum params matching design doc`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            enum class TestType { T1, T2, T3 }
+            enum class SortOrder { ASC, DESC }
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "/test/:id")
+            data class TestRequest(
+                @PathParam val id: Long,
+                @QueryParam val type: TestType,
+                @QueryParam @Default("SortOrder.ASC") val sort: SortOrder = SortOrder.ASC,
+                @QueryParam @EnumIgnoreCase val status: TestType? = null,
+            )
+        """)
+
+        val generated = compileAndFindSource(src, "TestRequestContract.kt")
+
+        // id — Long path param
+        assertContains(generated, """ctx.pathParam("id")?.let { raw ->""")
+        // type — required enum
+        assertContains(generated, "TestType.valueOf(raw)")
+        assertContains(generated, """throw BadRequestException("Missing query param: type")""")
+        // sort — enum with default
+        assertContains(generated, "SortOrder.valueOf(raw)")
+        assertContains(generated, "?: com.example.SortOrder.ASC")
+        // status — nullable enum with ignore case
+        assertContains(generated, "TestType.entries.firstOrNull { it.name.equals(raw, ignoreCase = true) }")
+    }
+
+    @Test
+    fun `should error when @Default value is invalid for Int`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "/items")
+            data class ItemRequest(
+                @QueryParam @Default("abc") val limit: Int = 0,
+            )
+        """)
+
+        val (result, _) = compileWithResult(src)
+
+        assertContains(result.messages, "@Default value 'abc' is not a valid Int for 'limit'")
+    }
+
+    @Test
+    fun `should error when @Default value is invalid for enum`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            enum class SortOrder { ASC, DESC }
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "/items")
+            data class ItemRequest(
+                @QueryParam @Default("SortOrder.INVALID") val sort: SortOrder = SortOrder.ASC,
+            )
+        """)
+
+        val (result, _) = compileWithResult(src)
+
+        assertContains(result.messages, "@Default value 'SortOrder.INVALID' is not a valid SortOrder entry for 'sort'")
+    }
+
+    // --- route() method ---
+
+    @Test
+    fun `should generate route method for GET endpoint`() {
+        val generated = compileAndFindSource(
+            source("GetUserRequest", "@PathParam val userId: Long,", path = "/users/:userId"),
+            "GetUserRequestContract.kt",
+        )
+
+        assertContains(generated, "fun route(router: Router, handler: (GetUserRequest, RoutingContext) -> Unit)")
+        assertContains(generated, """router.get("/users/:userId").handler { ctx ->""")
+        assertContains(generated, "try {")
+        assertContains(generated, "val request = from(ctx)")
+        assertContains(generated, "handler(request, ctx)")
+        assertContains(generated, "} catch (e: BadRequestException) {")
+        assertContains(generated, "ctx.response().setStatusCode(400).end(e.message)")
+    }
+
+    @Test
+    fun `should generate route method for POST endpoint`() {
+        val src = SourceFile.kotlin("CreateUserRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            @VertxEndpoint(method = HttpMethod.POST, path = "/users")
+            data class CreateUserRequest(
+                @QueryParam val name: String,
+            )
+        """)
+
+        val generated = compileAndFindSource(src, "CreateUserRequestContract.kt")
+
+        assertContains(generated, """router.post("/users").handler { ctx ->""")
+    }
+
+    // --- Header / Cookie / Body ---
+
+    @Test
+    fun `should generate contract with HeaderParam`() {
+        val generated = compileAndFindSource(
+            source("TestRequest", """
+                @HeaderParam("X-Forwarded-For") val clientIp: String? = null,
+                @HeaderParam("User-Agent") val userAgent: String? = null,
+            """),
+            "TestRequestContract.kt",
+        )
+
+        assertContains(generated, """ctx.request().getHeader("X-Forwarded-For")""")
+        assertContains(generated, """ctx.request().getHeader("User-Agent")""")
+    }
+
+    @Test
+    fun `should generate contract with CookieParam`() {
+        val generated = compileAndFindSource(
+            source("TestRequest", """@CookieParam("session_id") val sessionId: String? = null,"""),
+            "TestRequestContract.kt",
+        )
+
+        assertContains(generated, """ctx.request().getCookie("session_id")?.value""")
+    }
+
+    @Test
+    fun `should generate contract with BodyParam`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            data class AuthPayload(
+                val macAddress: String,
+                val serialNumber: String,
+            )
+
+            @VertxEndpoint(method = HttpMethod.POST, path = "/auth")
+            data class AuthRequest(
+                @HeaderParam("X-Forwarded-For") val clientIp: String? = null,
+                @CookieParam("session_id") val sessionId: String? = null,
+                @BodyParam val body: AuthPayload,
+            )
+        """)
+
+        val generated = compileAndFindSource(src, "AuthRequestContract.kt")
+
+        assertContains(generated, """ctx.request().getHeader("X-Forwarded-For")""")
+        assertContains(generated, """ctx.request().getCookie("session_id")?.value""")
+        assertContains(generated, "objectMapper.readValue(ctx.body().buffer().bytes, AuthPayload::class.java)")
+        assertContains(generated, """throw BadRequestException("Invalid request body:""")
+    }
+
+    @Test
+    fun `should add Enum import in generated code`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            enum class TestType { T1, T2 }
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "/test")
+            data class TestRequest(
+                @QueryParam val type: TestType,
+            )
+        """)
+
+        val generated = compileAndFindSource(src, "TestRequestContract.kt")
+
+        assertContains(generated, "import com.example.TestType")
+    }
+
+    // --- helpers ---
+
+    private fun source(className: String, params: String, path: String = "/test"): SourceFile {
+        return SourceFile.kotlin("$className.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "$path")
+            data class $className(
+                $params
+            )
+        """)
+    }
+
+    private fun compileAndFindSource(source: SourceFile, fileName: String): String {
+        val (_, compilation) = compileWithResult(source)
+        return findGeneratedSource(compilation, fileName)
+    }
+
+    private fun compileWithResult(vararg sources: SourceFile): Pair<JvmCompilationResult, KotlinCompilation> {
+        val compilation = KotlinCompilation().apply {
+            this.sources = sources.toList()
+            inheritClassPath = true
+            configureKsp(useKsp2 = true) {
+                symbolProcessorProviders += VertxContractProcessorProvider()
+            }
+        }
+        val result = compilation.compile()
+        return Pair(result, compilation)
+    }
+
+    private fun findGeneratedSource(compilation: KotlinCompilation, fileName: String): String {
+        val generatedFiles = compilation.kspSourcesDir
+            .walkTopDown()
+            .filter { it.isFile && it.extension == "kt" }
+            .toList()
+        val file = generatedFiles.firstOrNull { it.name == fileName }
+        assertTrue(
+            file != null,
+            "Expected generated file '$fileName' not found. Generated: ${generatedFiles.map { it.name }}"
+        )
+        return file.readText()
+    }
+}

@@ -1,0 +1,242 @@
+package io.github.chloeeekim.kontract.processor
+
+/**
+ * Generates the Kotlin source code for the Contract object.
+ */
+object ContractGenerator {
+
+    fun generate(
+        packageName: String,
+        className: String,
+        httpMethod: String,
+        path: String,
+        params: List<ParamInfo>,
+    ): String {
+        val contractName = "${className}Contract"
+        val parsingLines = params.joinToString("\n\n") { generateParamExtraction(it) }
+        val constructorArgs = params.joinToString("\n") { "            ${it.name} = ${it.name}," }
+        val imports = collectImports(params)
+
+        return buildString {
+            if (packageName.isNotEmpty()) {
+                appendLine("package $packageName")
+                appendLine()
+            }
+            imports.sorted().forEach { appendLine("import $it") }
+            appendLine()
+            appendLine("object $contractName {")
+            if (params.any { it.source == ParamSource.BODY }) {
+                appendLine()
+                appendLine("    private val objectMapper = jacksonObjectMapper()")
+            }
+            appendLine()
+            appendLine("    fun from(ctx: RoutingContext): $className {")
+            appendLine(parsingLines.prependIndent("        "))
+            appendLine()
+            appendLine("        return $className(")
+            appendLine(constructorArgs)
+            appendLine("        )")
+            appendLine("    }")
+            appendLine()
+            appendLine(generateRouteMethod(className, httpMethod, path))
+            appendLine("}")
+        }
+    }
+
+    private fun collectImports(params: List<ParamInfo>): Set<String> {
+        val imports = mutableSetOf(
+            "io.github.chloeeekim.kontract.annotation.BadRequestException",
+            "io.vertx.ext.web.Router",
+            "io.vertx.ext.web.RoutingContext",
+        )
+        for (param in params) {
+            if (param.isEnum) {
+                imports.add(param.qualifiedTypeName)
+            }
+            if (param.source == ParamSource.BODY) {
+                imports.add(param.qualifiedTypeName)
+                imports.add("com.fasterxml.jackson.module.kotlin.jacksonObjectMapper")
+            }
+        }
+        return imports
+    }
+
+    private fun generateRouteMethod(className: String, httpMethod: String, path: String): String {
+        val routerMethod = httpMethod.lowercase()
+        return """    fun route(router: Router, handler: ($className, RoutingContext) -> Unit) {
+        router.$routerMethod("$path").handler { ctx ->
+            try {
+                val request = from(ctx)
+                handler(request, ctx)
+            } catch (e: BadRequestException) {
+                ctx.response().setStatusCode(400).end(e.message)
+            }
+        }
+    }"""
+    }
+
+    private fun generateParamExtraction(param: ParamInfo): String {
+        val paramName = param.annotationName.ifEmpty { param.name }
+
+        return when (param.source) {
+            ParamSource.PATH -> generatePathParamParsing(param, paramName)
+            ParamSource.QUERY -> generateQueryParamParsing(param, paramName)
+            ParamSource.HEADER -> generateHeaderParamParsing(param, paramName)
+            ParamSource.COOKIE -> generateCookieParamParsing(param, paramName)
+            ParamSource.BODY -> generateBodyParamParsing(param)
+        }
+    }
+
+    private fun escapeStringLiteral(value: String): String {
+        return value
+            .replace("\\", "\\\\")
+            .replace("\"", "\\\"")
+            .replace("\$", "\\\$")
+    }
+
+    private fun generateMissingFallback(param: ParamInfo, paramName: String, paramKind: String): String {
+        return when {
+            param.defaultValue != null && param.typeName == "String" ->
+                """?: "${escapeStringLiteral(param.defaultValue)}""""
+            param.defaultValue != null && param.isEnum ->
+                "?: ${resolveEnumDefault(param)}"
+            param.defaultValue != null -> "?: ${param.defaultValue}"
+            param.nullable -> ""
+            else -> """?: throw BadRequestException("Missing $paramKind param: $paramName")"""
+        }
+    }
+
+    private fun resolveEnumDefault(param: ParamInfo): String {
+        val entryName = param.defaultValue!!.substringAfterLast(".")
+        return "${param.qualifiedTypeName}.$entryName"
+    }
+
+    // --- Path Param ---
+
+    private fun generatePathParamParsing(param: ParamInfo, paramName: String): String {
+        val extractor = """ctx.pathParam("$paramName")"""
+        return generateTypedParsing(param, paramName, extractor, "path")
+    }
+
+    // --- Query Param ---
+
+    private fun generateQueryParamParsing(param: ParamInfo, paramName: String): String {
+        val extractor = """ctx.request().getParam("$paramName")"""
+        return generateTypedParsing(param, paramName, extractor, "query")
+    }
+
+    // --- Header Param ---
+
+    private fun generateHeaderParamParsing(param: ParamInfo, paramName: String): String {
+        val extractor = """ctx.request().getHeader("$paramName")"""
+        return generateTypedParsing(param, paramName, extractor, "header")
+    }
+
+    // --- Cookie Param ---
+
+    private fun generateCookieParamParsing(param: ParamInfo, paramName: String): String {
+        val extractor = """ctx.request().getCookie("$paramName")?.value"""
+        return generateTypedParsing(param, paramName, extractor, "cookie")
+    }
+
+
+    // --- Common typed parsing (shared by Path, Query, Header, Cookie) ---
+
+    private fun generateTypedParsing(param: ParamInfo, paramName: String, extractor: String, paramKind: String): String {
+        if (param.isEnum) {
+            return generateEnumParsing(
+                param,
+                paramName,
+                extractor,
+                paramKind
+            )
+        }
+
+        return when (param.typeName) {
+            "Long", "Int" -> generateNumericParsing(
+                param,
+                paramName,
+                extractor,
+                paramKind
+            )
+            "String" -> generateStringParsing(
+                param,
+                paramName,
+                extractor,
+                paramKind
+            )
+            else -> error("Unsupported $paramKind param type: ${param.typeName}")
+        }
+    }
+
+    // --- Body Param ---
+
+    private fun generateBodyParamParsing(param: ParamInfo): String {
+        val typeName = param.typeName
+        return """val ${param.name} = try {
+    objectMapper.readValue(ctx.body().buffer().bytes, $typeName::class.java)
+} catch (e: Exception) {
+    throw BadRequestException("Invalid request body: ${'$'}{e.message}")
+}"""
+    }
+
+    // --- Numeric (Int/Long) with ?.let pattern ---
+
+    private fun generateNumericParsing(param: ParamInfo, paramName: String, extractor: String, paramKind: String): String {
+        val converter = if (param.typeName == "Long") "toLongOrNull" else "toIntOrNull"
+        val fallback = generateMissingFallback(param, paramName, paramKind)
+
+        return if (fallback.isEmpty()) {
+            """val ${param.name} = $extractor?.let { raw ->
+    raw.$converter()
+        ?: throw BadRequestException("Invalid value for $paramKind param '$paramName': '${'$'}raw'")
+}"""
+        } else {
+            """val ${param.name} = $extractor?.let { raw ->
+    raw.$converter()
+        ?: throw BadRequestException("Invalid value for $paramKind param '$paramName': '${'$'}raw'")
+}
+    $fallback""".trimEnd()
+        }
+    }
+
+    // --- String ---
+
+    private fun generateStringParsing(param: ParamInfo, paramName: String, extractor: String, paramKind: String): String {
+        val fallback = generateMissingFallback(param, paramName, paramKind)
+        return if (fallback.isEmpty()) {
+            """val ${param.name} = $extractor"""
+        } else {
+            """val ${param.name} = $extractor
+    $fallback""".trimEnd()
+        }
+    }
+
+    // --- Enum ---
+
+    private fun generateEnumParsing(param: ParamInfo, paramName: String, extractor: String, paramKind: String): String {
+        val enumType = param.qualifiedTypeName
+        val parser = if (param.enumIgnoreCase) {
+            """$enumType.entries.firstOrNull { it.name.equals(raw, ignoreCase = true) }
+            ?: throw BadRequestException("Invalid value for $paramKind param '$paramName': '${'$'}raw'. Allowed: ${'$'}{$enumType.entries.joinToString()}")"""
+        } else {
+            """try { $enumType.valueOf(raw) }
+        catch (e: IllegalArgumentException) {
+            throw BadRequestException("Invalid value for $paramKind param '$paramName': '${'$'}raw'. Allowed: ${'$'}{$enumType.entries.joinToString()}")
+        }"""
+        }
+
+        val fallback = generateMissingFallback(param, paramName, paramKind)
+
+        return if (fallback.isEmpty()) {
+            """val ${param.name} = $extractor?.let { raw ->
+    $parser
+}"""
+        } else {
+            """val ${param.name} = $extractor?.let { raw ->
+    $parser
+}
+    $fallback""".trimEnd()
+        }
+    }
+}
