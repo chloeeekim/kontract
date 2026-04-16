@@ -541,9 +541,9 @@ class KontractCodeGeneratorTest {
             coroutines = true,
         )
 
-        assertContains(code, "fun coRoute(vertx: Vertx, router: Router, handler: suspend (TestRequest, RoutingContext) -> Unit)")
-        assertContains(code, "CoroutineScope(vertx.dispatcher()).launch {")
-        assertContains(code, "import io.vertx.kotlin.coroutines.dispatcher")
+        assertContains(code, "fun coRoute(scope: CoroutineScope, router: Router, handler: suspend (TestRequest, RoutingContext) -> Unit)")
+        assertContains(code, "scope.launch {")
+        assertContains(code, "import kotlinx.coroutines.CoroutineScope")
         assertContains(code, "catch (e: Exception) {")
         assertContains(code, "ctx.fail(e)")
     }
@@ -560,8 +560,8 @@ class KontractCodeGeneratorTest {
             coroutines = true,
         )
 
-        assertContains(code, "fun coRouteWithResponse(vertx: Vertx, router: Router, handler: suspend (TestRequest, RoutingContext) -> TestResponse)")
-        assertContains(code, "CoroutineScope(vertx.dispatcher()).launch {")
+        assertContains(code, "fun coRouteWithResponse(scope: CoroutineScope, router: Router, handler: suspend (TestRequest, RoutingContext) -> TestResponse)")
+        assertContains(code, "scope.launch {")
     }
 
     @Test
@@ -588,8 +588,8 @@ class KontractCodeGeneratorTest {
             coroutines = true,
         )
 
-        assertContains(code, "fun TestRequest.Companion.coRoute(vertx: Vertx, router: Router, handler: suspend (TestRequest, RoutingContext) -> Unit)")
-        assertContains(code, "fun TestRequest.Companion.coRouteWithResponse(vertx: Vertx, router: Router, handler: suspend (TestRequest, RoutingContext) -> TestResponse)")
+        assertContains(code, "fun TestRequest.Companion.coRoute(scope: CoroutineScope, router: Router, handler: suspend (TestRequest, RoutingContext) -> Unit)")
+        assertContains(code, "fun TestRequest.Companion.coRouteWithResponse(scope: CoroutineScope, router: Router, handler: suspend (TestRequest, RoutingContext) -> TestResponse)")
     }
 
     @Test

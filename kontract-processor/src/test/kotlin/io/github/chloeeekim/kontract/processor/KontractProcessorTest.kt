@@ -1061,9 +1061,9 @@ class KontractProcessorTest {
         compilation.compile()
         val generated = findGeneratedSource(compilation, "TestRequestContract.kt")
 
-        assertContains(generated, "fun coRoute(vertx: Vertx, router: Router, handler: suspend (TestRequest, RoutingContext) -> Unit)")
-        assertContains(generated, "CoroutineScope(vertx.dispatcher()).launch {")
-        assertContains(generated, "import io.vertx.kotlin.coroutines.dispatcher")
+        assertContains(generated, "fun coRoute(scope: CoroutineScope, router: Router, handler: suspend (TestRequest, RoutingContext) -> Unit)")
+        assertContains(generated, "scope.launch {")
+        assertContains(generated, "import kotlinx.coroutines.CoroutineScope")
     }
 
     @Test

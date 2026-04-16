@@ -20,11 +20,11 @@ object KontractCodeGenerator {
                 appendLine("package $packageName")
                 appendLine()
             }
-            if (coroutines) {
-                appendLine("import io.vertx.core.Vertx")
-            }
             appendLine("import io.vertx.ext.web.Router")
             appendLine("import io.vertx.ext.web.RoutingContext")
+            if (coroutines) {
+                appendLine("import kotlinx.coroutines.CoroutineScope")
+            }
             if (responseType != null && responseType.substringBeforeLast(".") != packageName) {
                 appendLine("import $responseType")
             }
@@ -41,12 +41,12 @@ object KontractCodeGenerator {
             }
             if (coroutines) {
                 appendLine()
-                appendLine("fun $className.$companionName.coRoute(vertx: Vertx, router: Router, handler: suspend ($className, RoutingContext) -> Unit) =")
-                appendLine("    $contractName.coRoute(vertx, router, handler)")
+                appendLine("fun $className.$companionName.coRoute(scope: CoroutineScope, router: Router, handler: suspend ($className, RoutingContext) -> Unit) =")
+                appendLine("    $contractName.coRoute(scope, router, handler)")
                 if (responseSimpleName != null) {
                     appendLine()
-                    appendLine("fun $className.$companionName.coRouteWithResponse(vertx: Vertx, router: Router, handler: suspend ($className, RoutingContext) -> $responseSimpleName) =")
-                    appendLine("    $contractName.coRouteWithResponse(vertx, router, handler)")
+                    appendLine("fun $className.$companionName.coRouteWithResponse(scope: CoroutineScope, router: Router, handler: suspend ($className, RoutingContext) -> $responseSimpleName) =")
+                    appendLine("    $contractName.coRouteWithResponse(scope, router, handler)")
                 }
             }
         }
@@ -154,8 +154,6 @@ object KontractCodeGenerator {
             }
         }
         if (coroutines) {
-            imports.add("io.vertx.core.Vertx")
-            imports.add("io.vertx.kotlin.coroutines.dispatcher")
             imports.add("kotlinx.coroutines.CoroutineScope")
             imports.add("kotlinx.coroutines.launch")
         }
@@ -252,11 +250,13 @@ object KontractCodeGenerator {
     }"""
     }
 
+    // Accepts a scope as a parameter so the user can control the lifecycle.
+    // In CoroutineVerticle, passing `this` ensures automatic cancellation when the Verticle is stopped.
     private fun generateCoRouteMethod(className: String, httpMethod: String, path: String): String {
         val routerMethod = httpMethod.lowercase()
-        return """    fun coRoute(vertx: Vertx, router: Router, handler: suspend ($className, RoutingContext) -> Unit) {
+        return """    fun coRoute(scope: CoroutineScope, router: Router, handler: suspend ($className, RoutingContext) -> Unit) {
         router.$routerMethod("$path").handler { ctx ->
-            CoroutineScope(vertx.dispatcher()).launch {
+            scope.launch {
                 try {
                     val request = from(ctx)
                     handler(request, ctx)
@@ -281,9 +281,9 @@ object KontractCodeGenerator {
         val routerMethod = httpMethod.lowercase()
 
         if (statusCode in NO_BODY_STATUS_CODES) {
-            return """    fun coRouteWithResponse(vertx: Vertx, router: Router, handler: suspend ($className, RoutingContext) -> $responseSimpleName) {
+            return """    fun coRouteWithResponse(scope: CoroutineScope, router: Router, handler: suspend ($className, RoutingContext) -> $responseSimpleName) {
         router.$routerMethod("$path").handler { ctx ->
-            CoroutineScope(vertx.dispatcher()).launch {
+            scope.launch {
                 try {
                     val request = from(ctx)
                     handler(request, ctx)
@@ -302,9 +302,9 @@ object KontractCodeGenerator {
             SerializerMode.JACKSON -> "objectMapper.writeValueAsString(response)"
             SerializerMode.KOTLINX -> "Json.encodeToString(response)"
         }
-        return """    fun coRouteWithResponse(vertx: Vertx, router: Router, handler: suspend ($className, RoutingContext) -> $responseSimpleName) {
+        return """    fun coRouteWithResponse(scope: CoroutineScope, router: Router, handler: suspend ($className, RoutingContext) -> $responseSimpleName) {
         router.$routerMethod("$path").handler { ctx ->
-            CoroutineScope(vertx.dispatcher()).launch {
+            scope.launch {
                 try {
                     val request = from(ctx)
                     val response = handler(request, ctx)
