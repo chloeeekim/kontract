@@ -3,13 +3,11 @@ plugins {
     kotlin("jvm")
 }
 
-val jacksonVersion = "2.17.2"
-val kotlinxVersion = "1.6.3"
-
 dependencies {
     implementation(gradleApi())
     implementation(kotlin("stdlib"))
-    compileOnly("org.jetbrains.kotlin:kotlin-gradle-plugin:2.0.0")
+    compileOnly(libs.kotlin.gradle.plugin)
+    testImplementation(libs.junit.jupiter)
     testImplementation(gradleTestKit())
 }
 
@@ -17,8 +15,8 @@ tasks.processResources {
     filesMatching("kontract.properties") {
         expand(
             "version" to project.version.toString(),
-            "jacksonVersion" to jacksonVersion,
-            "kotlinxVersion" to kotlinxVersion,
+            "jacksonVersion" to libs.versions.jackson.get(),
+            "kotlinxVersion" to libs.versions.kotlinx.serialization.get(),
         )
     }
 }

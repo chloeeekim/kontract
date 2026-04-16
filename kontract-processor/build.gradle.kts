@@ -6,8 +6,9 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
 
 dependencies {
     implementation(project(":kontract-annotation"))
-    implementation("com.google.devtools.ksp:symbol-processing-api:2.0.0-1.0.24")
+    implementation(libs.ksp.symbol.processing.api)
 
-    testImplementation("dev.zacsweers.kctfork:core:0.7.0")
-    testImplementation("dev.zacsweers.kctfork:ksp:0.7.0")
+    testImplementation(libs.junit.jupiter)
+    testImplementation(libs.kctfork.core)
+    testImplementation(libs.kctfork.ksp)
 }

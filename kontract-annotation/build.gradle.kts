@@ -1,4 +1,5 @@
 dependencies {
-    compileOnly("io.vertx:vertx-web:4.5.10")
+    compileOnly(libs.vertx.web)
+    testImplementation(libs.junit.jupiter)
     testImplementation(kotlin("reflect"))
 }
