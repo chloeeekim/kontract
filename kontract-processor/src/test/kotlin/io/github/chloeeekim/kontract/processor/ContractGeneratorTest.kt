@@ -2,6 +2,7 @@ package io.github.chloeeekim.kontract.processor
 
 import org.junit.jupiter.api.Test
 import kotlin.test.assertContains
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class ContractGeneratorTest {
@@ -17,6 +18,7 @@ class ContractGeneratorTest {
         enumIgnoreCase: Boolean = false,
         qualifiedTypeName: String = typeName,
         validations: List<ValidationInfo> = emptyList(),
+        converterClass: String? = null,
     ) = ParamInfo(
         name = name,
         typeName = typeName,
@@ -28,6 +30,7 @@ class ContractGeneratorTest {
         isEnum = isEnum,
         enumIgnoreCase = enumIgnoreCase,
         validations = validations,
+        converterClass = converterClass,
     )
 
     private fun generate(params: List<ParamInfo>, className: String = "TestRequest", path: String = "/test") =
@@ -823,5 +826,152 @@ class ContractGeneratorTest {
         assertContains(code, "fun GetUserRequest.Factory.from(ctx: RoutingContext)")
         assertContains(code, "fun GetUserRequest.Factory.route(router: Router")
         assertTrue(!code.contains("GetUserRequest.Companion"))
+    }
+
+    // --- @TypeConverter tests ---
+
+    @Test
+    fun `should generate converter parsing for query param`() {
+        val code = generate(
+            listOf(
+                param(
+                    "startDate", "LocalDate",
+                    source = ParamSource.QUERY,
+                    qualifiedTypeName = "java.time.LocalDate",
+                    converterClass = "io.vertx.contract.annotation.converter.LocalDateConverter",
+                ),
+            ),
+            path = "/events",
+        )
+
+        assertContains(code, "private val localDateConverter = LocalDateConverter()")
+        assertContains(code, "localDateConverter.convert(raw)")
+        assertTrue(!code.contains("LocalDateConverter().convert(raw)"))
+        assertContains(code, "import io.vertx.contract.annotation.converter.LocalDateConverter")
+        assertContains(code, "import java.time.LocalDate")
+        assertContains(code, """throw BadRequestException("Missing query param: startDate")""")
+    }
+
+    @Test
+    fun `should generate converter parsing for nullable param`() {
+        val code = generate(
+            listOf(
+                param(
+                    "eventDate", "LocalDate",
+                    source = ParamSource.QUERY,
+                    nullable = true,
+                    qualifiedTypeName = "java.time.LocalDate",
+                    converterClass = "io.vertx.contract.annotation.converter.LocalDateConverter",
+                ),
+            ),
+            path = "/events",
+        )
+
+        assertContains(code, "localDateConverter.convert(raw)")
+        assertTrue(!code.contains("Missing query param"))
+    }
+
+    @Test
+    fun `should generate converter parsing for path param`() {
+        val code = generate(
+            listOf(
+                param(
+                    "id", "UUID",
+                    source = ParamSource.PATH,
+                    qualifiedTypeName = "java.util.UUID",
+                    converterClass = "io.vertx.contract.annotation.converter.UUIDConverter",
+                ),
+            ),
+            path = "/items/:id",
+        )
+
+        assertContains(code, "uUIDConverter.convert(raw)")
+        assertContains(code, """ctx.pathParam("id")?.let { raw ->""")
+        assertContains(code, "import io.vertx.contract.annotation.converter.UUIDConverter")
+        assertContains(code, "import java.util.UUID")
+    }
+
+    @Test
+    fun `should generate converter parsing for header param`() {
+        val code = generate(
+            listOf(
+                param(
+                    "requestDate", "LocalDate",
+                    source = ParamSource.HEADER,
+                    annotationName = "X-Request-Date",
+                    qualifiedTypeName = "java.time.LocalDate",
+                    converterClass = "io.vertx.contract.annotation.converter.LocalDateConverter",
+                ),
+            ),
+            path = "/test",
+        )
+
+        assertContains(code, """ctx.request().getHeader("X-Request-Date")?.let { raw ->""")
+        assertContains(code, "localDateConverter.convert(raw)")
+    }
+
+    @Test
+    fun `should generate converter parsing for cookie param`() {
+        val code = generate(
+            listOf(
+                param(
+                    "sessionExpiry", "LocalDate",
+                    source = ParamSource.COOKIE,
+                    annotationName = "session_expiry",
+                    nullable = true,
+                    qualifiedTypeName = "java.time.LocalDate",
+                    converterClass = "io.vertx.contract.annotation.converter.LocalDateConverter",
+                ),
+            ),
+            path = "/test",
+        )
+
+        assertContains(code, """ctx.request().getCookie("session_expiry")?.value?.let { raw ->""")
+        assertContains(code, "localDateConverter.convert(raw)")
+        assertTrue(!code.contains("Missing cookie param"))
+    }
+
+    @Test
+    fun `should generate converter with error message containing param info`() {
+        val code = generate(
+            listOf(
+                param(
+                    "amount", "BigDecimal",
+                    source = ParamSource.QUERY,
+                    qualifiedTypeName = "java.math.BigDecimal",
+                    converterClass = "io.vertx.contract.annotation.converter.BigDecimalConverter",
+                ),
+            ),
+            path = "/payments",
+        )
+
+        assertContains(code, """throw BadRequestException("Invalid value for query param 'amount':""")
+    }
+
+    @Test
+    fun `should generate single converter field for same converter used on multiple params`() {
+        val code = generate(
+            listOf(
+                param(
+                    "startDate", "LocalDate",
+                    source = ParamSource.QUERY,
+                    nullable = true,
+                    qualifiedTypeName = "java.time.LocalDate",
+                    converterClass = "io.vertx.contract.annotation.converter.LocalDateConverter",
+                ),
+                param(
+                    "endDate", "LocalDate",
+                    source = ParamSource.QUERY,
+                    nullable = true,
+                    qualifiedTypeName = "java.time.LocalDate",
+                    converterClass = "io.vertx.contract.annotation.converter.LocalDateConverter",
+                ),
+            ),
+            path = "/events",
+        )
+
+        val count = Regex("private val localDateConverter = LocalDateConverter\\(\\)")
+            .findAll(code).count()
+        assertEquals(1, count, "Only one should be generated for the same converter class.")
     }
 }

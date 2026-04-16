@@ -68,6 +68,10 @@ object ContractGenerator {
                 appendLine()
                 appendLine("    private val objectMapper = jacksonObjectMapper()")
             }
+            val converterFields = collectConverterFields(params)
+            for ((fieldName, simpleName) in converterFields) {
+                appendLine("    private val $fieldName = $simpleName()")
+            }
             val regexFields = collectRegexFields(params)
             for ((fieldName, regex) in regexFields) {
                 appendLine("    private val $fieldName = Regex(\"${escapeStringLiteral(regex)}\")")
@@ -100,6 +104,10 @@ object ContractGenerator {
             if (param.isEnum) {
                 imports.add(param.qualifiedTypeName)
             }
+            if (param.converterClass != null) {
+                imports.add(param.converterClass)
+                imports.add(param.qualifiedTypeName)
+            }
             if (param.source == ParamSource.BODY) {
                 imports.add(param.qualifiedTypeName)
                 when (serializerMode) {
@@ -124,6 +132,22 @@ object ContractGenerator {
                 "${param.name}Pattern" to pattern.regex
             }
         }
+    }
+
+    private fun converterFieldName(converterClass: String): String {
+        val simpleName = converterClass.substringAfterLast(".")
+        return simpleName.replaceFirstChar { it.lowercase() }
+    }
+
+    private fun collectConverterFields(params: List<ParamInfo>): List<Pair<String, String>> {
+        return params
+            .filter { it.converterClass != null }
+            .map { it.converterClass!! }
+            .distinct()
+            .map { converterClass ->
+                val simpleName = converterClass.substringAfterLast(".")
+                converterFieldName(converterClass) to simpleName
+            }
     }
 
     internal val NO_BODY_STATUS_CODES = setOf(204, 205, 304)
@@ -257,6 +281,10 @@ object ContractGenerator {
     // --- Common typed parsing (shared by Path, Query, Header, Cookie) ---
 
     private fun generateTypedParsing(param: ParamInfo, paramName: String, extractor: String, paramKind: String): String {
+        if (param.converterClass != null) {
+            return generateConverterParsing(param, paramName, extractor, paramKind)
+        }
+
         if (param.isEnum) {
             return generateEnumParsing(
                 param,
@@ -358,6 +386,30 @@ object ContractGenerator {
         } else {
             """val ${param.name} = $extractor?.let { raw ->
     $parser
+}
+    $fallback""".trimEnd()
+        }
+    }
+
+    // --- Custom TypeConverter ---
+
+    private fun generateConverterParsing(param: ParamInfo, paramName: String, extractor: String, paramKind: String): String {
+        val converterFieldName = converterFieldName(param.converterClass!!)
+        val fallback = generateMissingFallback(param, paramName, paramKind)
+
+        return if (fallback.isEmpty()) {
+            """val ${param.name} = $extractor?.let { raw ->
+    try { $converterFieldName.convert(raw) }
+    catch (e: Exception) {
+        throw BadRequestException("Invalid value for $paramKind param '$paramName': '${'$'}raw'. ${'$'}{e.message}")
+    }
+}"""
+        } else {
+            """val ${param.name} = $extractor?.let { raw ->
+    try { $converterFieldName.convert(raw) }
+    catch (e: Exception) {
+        throw BadRequestException("Invalid value for $paramKind param '$paramName': '${'$'}raw'. ${'$'}{e.message}")
+    }
 }
     $fallback""".trimEnd()
         }

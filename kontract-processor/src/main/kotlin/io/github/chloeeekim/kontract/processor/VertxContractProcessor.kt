@@ -175,6 +175,37 @@ class VertxContractProcessor(
         val enumIgnoreCase = param.annotations
             .any { it.shortName.asString() == "EnumIgnoreCase" }
 
+        val converterClass = param.annotations
+            .firstOrNull { it.shortName.asString() == "TypeConverter" }
+            ?.arguments
+            ?.firstOrNull { it.name?.asString() == "converter" }
+            ?.value
+            ?.let { it as? com.google.devtools.ksp.symbol.KSType }
+            ?.declaration?.qualifiedName?.asString()
+
+        if (converterClass != null && source == ParamSource.BODY) {
+            logger.error(
+                "@TypeConverter on @BodyParam '${param.name?.asString()}' is not supported. " +
+                        "Body parameters are deserialized from the request body, not from a string value.",
+                param,
+            )
+        }
+
+        if (converterClass != null && isEnum) {
+            logger.warn(
+                "@TypeConverter on Enum type '${param.name?.asString()}' overrides built-in Enum parsing.",
+                param,
+            )
+        }
+
+        if (converterClass != null && defaultValue != null) {
+            logger.error(
+                "@Default on @TypeConverter parameter '${param.name?.asString()}' is not supported. " +
+                        "Custom type converters cannot have default values.",
+                param,
+            )
+        }
+
         if (defaultValue != null && source == ParamSource.BODY) {
             logger.warn(
                 "@Default on @BodyParam '${param.name?.asString()}' is ignored. " +
@@ -215,6 +246,7 @@ class VertxContractProcessor(
             isEnum = isEnum,
             enumIgnoreCase = enumIgnoreCase,
             validations = validations,
+            converterClass = converterClass,
         )
     }
 
