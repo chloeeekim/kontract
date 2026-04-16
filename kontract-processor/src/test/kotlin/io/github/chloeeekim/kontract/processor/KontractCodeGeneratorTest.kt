@@ -528,6 +528,82 @@ class KontractCodeGeneratorTest {
         assertContains(code, "import io.github.chloeeekim.kontract.annotation.KontractConfig")
     }
 
+    // --- Coroutine support ---
+
+    @Test
+    fun `should generate coRoute when coroutines enabled`() {
+        val code = KontractCodeGenerator.generate(
+            packageName = "com.example",
+            className = "TestRequest",
+            httpMethod = "GET",
+            path = "/test/:id",
+            params = listOf(param("id", "Long", ParamSource.PATH)),
+            coroutines = true,
+        )
+
+        assertContains(code, "fun coRoute(vertx: Vertx, router: Router, handler: suspend (TestRequest, RoutingContext) -> Unit)")
+        assertContains(code, "CoroutineScope(vertx.dispatcher()).launch {")
+        assertContains(code, "import io.vertx.kotlin.coroutines.dispatcher")
+        assertContains(code, "catch (e: Exception) {")
+        assertContains(code, "ctx.fail(e)")
+    }
+
+    @Test
+    fun `should generate coRouteWithResponse when coroutines enabled and response type specified`() {
+        val code = KontractCodeGenerator.generate(
+            packageName = "com.example",
+            className = "TestRequest",
+            httpMethod = "GET",
+            path = "/test/:id",
+            params = listOf(param("id", "Long", ParamSource.PATH)),
+            responseType = "com.other.TestResponse",
+            coroutines = true,
+        )
+
+        assertContains(code, "fun coRouteWithResponse(vertx: Vertx, router: Router, handler: suspend (TestRequest, RoutingContext) -> TestResponse)")
+        assertContains(code, "CoroutineScope(vertx.dispatcher()).launch {")
+    }
+
+    @Test
+    fun `should not generate coRoute when coroutines disabled`() {
+        val code = KontractCodeGenerator.generate(
+            packageName = "com.example",
+            className = "TestRequest",
+            httpMethod = "GET",
+            path = "/test/:id",
+            params = listOf(param("id", "Long", ParamSource.PATH)),
+            coroutines = false,
+        )
+
+        assertFalse(code.contains("coRoute"), "coRoute should not be generated when coroutines is disabled")
+        assertFalse(code.contains("CoroutineScope"), "CoroutineScope should not be present when coroutines is disabled")
+    }
+
+    @Test
+    fun `should generate coRoute companion extensions when coroutines enabled`() {
+        val code = KontractCodeGenerator.generateCompanionExtensions(
+            packageName = "com.example",
+            className = "TestRequest",
+            responseType = "com.other.TestResponse",
+            coroutines = true,
+        )
+
+        assertContains(code, "fun TestRequest.Companion.coRoute(vertx: Vertx, router: Router, handler: suspend (TestRequest, RoutingContext) -> Unit)")
+        assertContains(code, "fun TestRequest.Companion.coRouteWithResponse(vertx: Vertx, router: Router, handler: suspend (TestRequest, RoutingContext) -> TestResponse)")
+    }
+
+    @Test
+    fun `should not generate coRoute companion extensions when coroutines disabled`() {
+        val code = KontractCodeGenerator.generateCompanionExtensions(
+            packageName = "com.example",
+            className = "TestRequest",
+            responseType = "com.other.TestResponse",
+            coroutines = false,
+        )
+
+        assertFalse(code.contains("coRoute"), "coRoute should not be in companion extensions when coroutines is disabled")
+    }
+
     // --- Same-package import filtering ---
 
     @Test

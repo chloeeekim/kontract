@@ -16,6 +16,7 @@ class KontractProcessor(
     private val codeGenerator: CodeGenerator,
     private val logger: KSPLogger,
     private val serializerMode: SerializerMode = SerializerMode.JACKSON,
+    private val coroutines: Boolean = false,
 ) : SymbolProcessor {
 
     override fun process(resolver: Resolver): List<KSAnnotated> {
@@ -117,6 +118,7 @@ class KontractProcessor(
             serializerMode = serializerMode,
             responseType = responseType,
             statusCode = statusCode,
+            coroutines = coroutines,
         )
 
         val file = codeGenerator.createNewFile(
@@ -141,6 +143,7 @@ class KontractProcessor(
                 className = className,
                 responseType = responseType,
                 companionName = companionName,
+                coroutines = coroutines,
             )
 
             val extensionFile = codeGenerator.createNewFile(

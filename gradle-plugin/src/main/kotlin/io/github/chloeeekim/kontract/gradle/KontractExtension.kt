@@ -8,4 +8,10 @@ interface KontractExtension {
      * "jackson" (default) or "kotlinx".
      */
     val serializer: Property<String>
+
+    /**
+     * Whether to generate coRoute() / coRouteWithResponse() based on coroutineHandler.
+     * If set to true, additional methods using suspend handlers are generated.
+     */
+    val coroutines: Property<Boolean>
 }

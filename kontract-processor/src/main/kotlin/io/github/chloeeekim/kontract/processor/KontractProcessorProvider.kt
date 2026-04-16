@@ -17,10 +17,13 @@ class KontractProcessorProvider : SymbolProcessorProvider {
             }
         }
 
+        val coroutines = environment.options["kontract.coroutines"]?.lowercase() == "true"
+
         return KontractProcessor(
             codeGenerator = environment.codeGenerator,
             logger = environment.logger,
             serializerMode = serializerMode,
+            coroutines = coroutines,
         )
     }
 }

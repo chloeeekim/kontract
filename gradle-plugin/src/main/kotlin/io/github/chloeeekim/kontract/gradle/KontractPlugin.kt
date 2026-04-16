@@ -29,9 +29,11 @@ class KontractPlugin : Plugin<Project> {
 
     private val annotationArtifact: String get() = "io.github.chloeeekim:kontract-annotation:$kontractVersion"
     private val processorArtifact: String get() = "io.github.chloeeekim:kontract-processor:$kontractVersion"
+    private val vertxVersion: String get() = properties.getProperty("vertxVersion", "4.5.10")
+
     private val jacksonArtifact: String get() = "com.fasterxml.jackson.module:jackson-module-kotlin:$jacksonVersion"
     private val kotlinxArtifact: String get() = "org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxVersion"
-
+    private val coroutinesArtifact: String get() = "io.vertx:vertx-lang-kotlin-coroutines:$vertxVersion"
 
     override fun apply(project: Project) {
         // 0. Warning for properties loading failure
@@ -45,6 +47,7 @@ class KontractPlugin : Plugin<Project> {
         // 1. Register DSL extension
         val extension = project.extensions.create("kontract", KontractExtension::class.java)
         extension.serializer.convention("jackson")
+        extension.coroutines.convention(false)
 
         // 2. Automatically configure settings when the KSP plugin is applied
         project.pluginManager.withPlugin("com.google.devtools.ksp") {
@@ -83,7 +86,8 @@ class KontractPlugin : Plugin<Project> {
             }
 
             // Options to KSP
-            configureKspArg(project, serializer)
+            configureKspArg(project, "kontract.serializer", serializer)
+            configureKspArg(project, "kontract.coroutines", extension.coroutines.get().toString())
 
             // When kotlinx is selected, remove Jackson and add kotlinx
             if (serializer == "kotlinx") {
@@ -91,6 +95,11 @@ class KontractPlugin : Plugin<Project> {
                     it.group == "com.fasterxml.jackson.module" && it.name == "jackson-module-kotlin"
                 }
                 project.dependencies.add("implementation", kotlinxArtifact)
+            }
+
+            // coroutines 선택 시 vertx-lang-kotlin-coroutines 추가
+            if (extension.coroutines.get()) {
+                project.dependencies.add("implementation", coroutinesArtifact)
             }
         }
     }
@@ -112,15 +121,15 @@ class KontractPlugin : Plugin<Project> {
         }
     }
 
-    private fun configureKspArg(project: Project, serializer: String) {
+    private fun configureKspArg(project: Project, key: String, value: String) {
         try {
             val kspExtension = project.extensions.findByName("ksp") ?: return
             val argMethod = kspExtension.javaClass.getMethod("arg", String::class.java, String::class.java)
-            argMethod.invoke(kspExtension, "kontract.serializer", serializer)
+            argMethod.invoke(kspExtension, key, value)
         } catch (_: Exception) {
             project.logger.warn(
-                "kontract: Could not set KSP arg. " +
-                        "Set it manually: ksp { arg(\"kontract.serializer\", \"$serializer\") }"
+                "kontract: Could not set KSP arg '$key'. " +
+                        "Set it manually: ksp { arg(\"$key\", \"$value\") }"
             )
         }
     }

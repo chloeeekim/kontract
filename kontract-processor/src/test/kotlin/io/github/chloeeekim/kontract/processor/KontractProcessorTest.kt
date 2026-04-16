@@ -1037,4 +1037,43 @@ class KontractProcessorTest {
 
         assertFalse(result.messages.contains("kotlinx.serialization requires concrete @Serializable types"))
     }
+
+    // --- Coroutine support ---
+
+    @Test
+    fun `should generate coRoute when coroutines option is enabled`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "/test/:id")
+            data class TestRequest(@PathParam val id: Long)
+        """)
+        val compilation = KotlinCompilation().apply {
+            sources = listOf(src)
+            inheritClassPath = true
+            configureKsp(useKsp2 = true) {
+                symbolProcessorProviders += KontractProcessorProvider()
+            }
+            kspProcessorOptions = mutableMapOf("kontract.coroutines" to "true")
+        }
+        compilation.compile()
+        val generated = findGeneratedSource(compilation, "TestRequestContract.kt")
+
+        assertContains(generated, "fun coRoute(vertx: Vertx, router: Router, handler: suspend (TestRequest, RoutingContext) -> Unit)")
+        assertContains(generated, "CoroutineScope(vertx.dispatcher()).launch {")
+        assertContains(generated, "import io.vertx.kotlin.coroutines.dispatcher")
+    }
+
+    @Test
+    fun `should not generate coRoute when coroutines option is disabled`() {
+        val generated = compileAndFindSource(
+            source("TestRequest", "@PathParam val id: Long", path = "/test/:id"),
+            "TestRequestContract.kt",
+        )
+
+        assertFalse(generated.contains("coRoute"))
+        assertFalse(generated.contains("CoroutineScope"))
+    }
 }

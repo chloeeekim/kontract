@@ -10,6 +10,7 @@ object KontractCodeGenerator {
         className: String,
         responseType: String? = null,
         companionName: String = "Companion",
+        coroutines: Boolean = false,
     ): String {
         val contractName = "${className}Contract"
         val responseSimpleName = responseType?.substringAfterLast(".")
@@ -18,6 +19,9 @@ object KontractCodeGenerator {
             if (packageName.isNotEmpty()) {
                 appendLine("package $packageName")
                 appendLine()
+            }
+            if (coroutines) {
+                appendLine("import io.vertx.core.Vertx")
             }
             appendLine("import io.vertx.ext.web.Router")
             appendLine("import io.vertx.ext.web.RoutingContext")
@@ -35,6 +39,16 @@ object KontractCodeGenerator {
                 appendLine("fun $className.$companionName.routeWithResponse(router: Router, handler: ($className, RoutingContext) -> $responseSimpleName) =")
                 appendLine("    $contractName.routeWithResponse(router, handler)")
             }
+            if (coroutines) {
+                appendLine()
+                appendLine("fun $className.$companionName.coRoute(vertx: Vertx, router: Router, handler: suspend ($className, RoutingContext) -> Unit) =")
+                appendLine("    $contractName.coRoute(vertx, router, handler)")
+                if (responseSimpleName != null) {
+                    appendLine()
+                    appendLine("fun $className.$companionName.coRouteWithResponse(vertx: Vertx, router: Router, handler: suspend ($className, RoutingContext) -> $responseSimpleName) =")
+                    appendLine("    $contractName.coRouteWithResponse(vertx, router, handler)")
+                }
+            }
         }
     }
 
@@ -47,11 +61,12 @@ object KontractCodeGenerator {
         serializerMode: SerializerMode = SerializerMode.JACKSON,
         responseType: String? = null,
         statusCode: Int = 200,
+        coroutines: Boolean = false,
     ): String {
         val contractName = "${className}Contract"
         val parsingLines = params.joinToString("\n\n") { generateParamExtraction(it, serializerMode) }
         val constructorArgs = params.joinToString("\n") { "            ${it.name} = ${it.name}," }
-        val imports = collectImports(params, serializerMode, responseType, packageName)
+        val imports = collectImports(params, serializerMode, responseType, packageName, coroutines)
         val responseSimpleName = responseType?.substringAfterLast(".")
         val needsObjectMapper = serializerMode == SerializerMode.JACKSON &&
                 (params.any { it.source == ParamSource.BODY } || responseType != null)
@@ -90,6 +105,14 @@ object KontractCodeGenerator {
                 appendLine()
                 appendLine(generateTypedRouteMethod(className, responseSimpleName, httpMethod, path, statusCode, serializerMode))
             }
+            if (coroutines) {
+                appendLine()
+                appendLine(generateCoRouteMethod(className, httpMethod, path))
+                if (responseSimpleName != null) {
+                    appendLine()
+                    appendLine(generateCoTypedRouteMethod(className, responseSimpleName, httpMethod, path, statusCode, serializerMode))
+                }
+            }
             appendLine("}")
         }
     }
@@ -99,6 +122,7 @@ object KontractCodeGenerator {
         serializerMode: SerializerMode,
         responseType: String? = null,
         packageName: String = "",
+        coroutines: Boolean = false,
     ): Set<String> {
         val imports = mutableSetOf(
             "io.github.chloeeekim.kontract.annotation.BadRequestException",
@@ -128,6 +152,12 @@ object KontractCodeGenerator {
                 SerializerMode.JACKSON -> imports.add("com.fasterxml.jackson.module.kotlin.jacksonObjectMapper")
                 SerializerMode.KOTLINX -> imports.add("kotlinx.serialization.json.Json")
             }
+        }
+        if (coroutines) {
+            imports.add("io.vertx.core.Vertx")
+            imports.add("io.vertx.kotlin.coroutines.dispatcher")
+            imports.add("kotlinx.coroutines.CoroutineScope")
+            imports.add("kotlinx.coroutines.launch")
         }
         return imports
     }
@@ -217,6 +247,76 @@ object KontractCodeGenerator {
                 handler(request, ctx)
             } catch (e: BadRequestException) {
                 KontractConfig.errorHandler.handleError(ctx, e)
+            }
+        }
+    }"""
+    }
+
+    private fun generateCoRouteMethod(className: String, httpMethod: String, path: String): String {
+        val routerMethod = httpMethod.lowercase()
+        return """    fun coRoute(vertx: Vertx, router: Router, handler: suspend ($className, RoutingContext) -> Unit) {
+        router.$routerMethod("$path").handler { ctx ->
+            CoroutineScope(vertx.dispatcher()).launch {
+                try {
+                    val request = from(ctx)
+                    handler(request, ctx)
+                } catch (e: BadRequestException) {
+                    ContractConfig.errorHandler.handleError(ctx, e)
+                } catch (e: Exception) {
+                    ctx.fail(e)
+                }
+            }
+        }
+    }"""
+    }
+
+    private fun generateCoTypedRouteMethod(
+        className: String,
+        responseSimpleName: String,
+        httpMethod: String,
+        path: String,
+        statusCode: Int,
+        serializerMode: SerializerMode,
+    ): String {
+        val routerMethod = httpMethod.lowercase()
+
+        if (statusCode in NO_BODY_STATUS_CODES) {
+            return """    fun coRouteWithResponse(vertx: Vertx, router: Router, handler: suspend ($className, RoutingContext) -> $responseSimpleName) {
+        router.$routerMethod("$path").handler { ctx ->
+            CoroutineScope(vertx.dispatcher()).launch {
+                try {
+                    val request = from(ctx)
+                    handler(request, ctx)
+                    ctx.response().setStatusCode($statusCode).end()
+                } catch (e: BadRequestException) {
+                    ContractConfig.errorHandler.handleError(ctx, e)
+                } catch (e: Exception) {
+                    ctx.fail(e)
+                }
+            }
+        }
+    }"""
+        }
+
+        val serializeExpr = when (serializerMode) {
+            SerializerMode.JACKSON -> "objectMapper.writeValueAsString(response)"
+            SerializerMode.KOTLINX -> "Json.encodeToString(response)"
+        }
+        return """    fun coRouteWithResponse(vertx: Vertx, router: Router, handler: suspend ($className, RoutingContext) -> $responseSimpleName) {
+        router.$routerMethod("$path").handler { ctx ->
+            CoroutineScope(vertx.dispatcher()).launch {
+                try {
+                    val request = from(ctx)
+                    val response = handler(request, ctx)
+                    ctx.response()
+                        .setStatusCode($statusCode)
+                        .putHeader("Content-Type", "application/json")
+                        .end($serializeExpr)
+                } catch (e: BadRequestException) {
+                    ContractConfig.errorHandler.handleError(ctx, e)
+                } catch (e: Exception) {
+                    ctx.fail(e)
+                }
             }
         }
     }"""

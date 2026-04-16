@@ -21,6 +21,7 @@ tasks.processResources {
             "version" to project.version.toString(),
             "jacksonVersion" to libs.versions.jackson.get(),
             "kotlinxVersion" to libs.versions.kotlinx.serialization.get(),
+            "vertxVersion" to libs.versions.vertx.get(),
         )
     }
 }

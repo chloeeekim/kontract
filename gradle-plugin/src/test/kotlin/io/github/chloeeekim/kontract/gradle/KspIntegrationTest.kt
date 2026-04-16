@@ -163,6 +163,46 @@ class KspIntegrationTest {
         )
     }
 
+    @Test
+    fun `should pass coroutines KSP arg without error`() {
+        writeBuildFile("""
+            kontract {
+                coroutines.set(true)
+            }
+        """)
+
+        val result = runGradle("tasks")
+
+        assertFalse(
+            result.output.contains("Could not set KSP arg"),
+            "coroutines KSP arg should be set without error",
+        )
+    }
+
+    @Test
+    fun `should add coroutines dependency when coroutines enabled`() {
+        writeBuildFile("""
+            kontract {
+                coroutines.set(true)
+            }
+
+            tasks.register("printDependencies") {
+                doLast {
+                    val implDeps = configurations.getByName("implementation").dependencies
+                        .map { "${'$'}{it.group}:${'$'}{it.name}" }
+                    println("impl-deps=${'$'}implDeps")
+                }
+            }
+        """)
+
+        val result = runGradle("printDependencies")
+
+        assertTrue(
+            result.output.contains("io.vertx:vertx-lang-kotlin-coroutines"),
+            "coroutines dependency should be added when coroutines is enabled",
+        )
+    }
+
     private fun writeBuildFile(extraConfig: String = "") {
         File(projectDir, "build.gradle.kts").writeText("""
             plugins {
