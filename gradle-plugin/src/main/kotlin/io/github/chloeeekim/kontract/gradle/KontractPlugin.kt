@@ -34,7 +34,7 @@ class KontractPlugin : Plugin<Project> {
 
 
     override fun apply(project: Project) {
-        // 0. properties 로딩 실패 경고
+        // 0. Warning for properties loading failure
         if (properties.getProperty("_loadFailed") == "true") {
             project.logger.warn(
                 "kontract: Could not load ${PROPERTIES_FILE}. Using fallback default versions. " +
@@ -42,16 +42,16 @@ class KontractPlugin : Plugin<Project> {
             )
         }
 
-        // 1. DSL extension 등록
+        // 1. Register DSL extension
         val extension = project.extensions.create("kontract", KontractExtension::class.java)
         extension.serializer.convention("jackson")
 
-        // 2. KSP 플러그인이 적용되면 설정 자동 구성
+        // 2. Automatically configure settings when the KSP plugin is applied
         project.pluginManager.withPlugin("com.google.devtools.ksp") {
             configureWithKsp(project, extension)
         }
 
-        // 3. KSP 없이 사용하는 경우 — 경고
+        // 3. When used without KSP - warning
         project.afterEvaluate {
             if (!project.plugins.hasPlugin("com.google.devtools.ksp")) {
                 project.logger.warn(
@@ -62,30 +62,30 @@ class KontractPlugin : Plugin<Project> {
     }
 
     private fun configureWithKsp(project: Project, extension: KontractExtension) {
-        // 의존성 즉시 추가 (afterEvaluate 밖에서)
+        // Add dependencies immediately (outside afterEvaluate)
         project.dependencies.add("implementation", annotationArtifact)
         project.dependencies.add("ksp", processorArtifact)
-        // 기본 serializer(jackson) 의존성도 즉시 추가
+        // Add the default serializer(jackson) dependency
         project.dependencies.add("implementation", jacksonArtifact)
 
-        // KSP 생성 소스 디렉토리를 소스셋에 등록 (IDE 인식)
+        // Register the KSP-generated source directory in the source set (for IDE recognition)
         registerKspSourceDir(project)
 
-        // afterEvaluate에서 serializer 변경 사항 처리
+        // Handle serializer changes in afterEvaluate
         project.afterEvaluate {
             val serializer = extension.serializer.get()
 
-            // 잘못된 serializer 값 검증
+            // Validate invalid serializer values
             if (serializer !in VALID_SERIALIZERS) {
                 project.logger.warn(
                     "kontract: Unknown serializer '$serializer'. Use 'jackson' or 'kotlinx'. Falling back to 'jackson'."
                 )
             }
 
-            // KSP 옵션 전달
+            // Options to KSP
             configureKspArg(project, serializer)
 
-            // kotlinx 선택 시 jackson 제거, kotlinx 추가
+            // When kotlinx is selected, remove Jackson and add kotlinx
             if (serializer == "kotlinx") {
                 project.configurations.getByName("implementation").dependencies.removeIf {
                     it.group == "com.fasterxml.jackson.module" && it.name == "jackson-module-kotlin"
@@ -95,9 +95,6 @@ class KontractPlugin : Plugin<Project> {
         }
     }
 
-    // KotlinProjectExtension을 직접 참조하면 TestKit의 injected classloader에서
-    // NoClassDefFoundError가 발생하므로 리플렉션으로 접근한다.
-    // KGP(Kotlin Gradle Plugin) 2.0.0 기준 API. KGP API 변경 시 silent failure → catch + warning.
     private fun registerKspSourceDir(project: Project) {
         try {
             val kotlinExtension = project.extensions.findByName("kotlin") ?: return
