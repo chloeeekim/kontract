@@ -763,4 +763,65 @@ class ContractGeneratorTest {
         assertContains(code, """if (limit < 1)""")
         assertContains(code, """if (limit > 100)""")
     }
+
+    // --- Companion extensions ---
+
+    @Test
+    fun `should generate companion extensions with from and route`() {
+        val code = ContractGenerator.generateCompanionExtensions(
+            packageName = "com.example",
+            className = "GetUserRequest",
+        )
+
+        assertContains(code, "fun GetUserRequest.Companion.from(ctx: RoutingContext)")
+        assertContains(code, "GetUserRequestContract.from(ctx)")
+        assertContains(code, "fun GetUserRequest.Companion.route(router: Router, handler: (GetUserRequest, RoutingContext) -> Unit)")
+        assertContains(code, "GetUserRequestContract.route(router, handler)")
+    }
+
+    @Test
+    fun `should generate routeWithResponse extension when response type specified`() {
+        val code = ContractGenerator.generateCompanionExtensions(
+            packageName = "com.example",
+            className = "GetUserRequest",
+            responseType = "com.example.UserResponse",
+        )
+
+        assertContains(code, "fun GetUserRequest.Companion.routeWithResponse(router: Router, handler: (GetUserRequest, RoutingContext) -> UserResponse)")
+        assertContains(code, "GetUserRequestContract.routeWithResponse(router, handler)")
+    }
+
+    @Test
+    fun `should not generate routeWithResponse extension when no response type`() {
+        val code = ContractGenerator.generateCompanionExtensions(
+            packageName = "com.example",
+            className = "GetUserRequest",
+        )
+
+        assertTrue(!code.contains("routeWithResponse"))
+    }
+
+    @Test
+    fun `should import response type in companion extensions`() {
+        val code = ContractGenerator.generateCompanionExtensions(
+            packageName = "com.example",
+            className = "GetUserRequest",
+            responseType = "com.other.UserResponse",
+        )
+
+        assertContains(code, "import com.other.UserResponse")
+    }
+
+    @Test
+    fun `should use named companion in extensions`() {
+        val code = ContractGenerator.generateCompanionExtensions(
+            packageName = "com.example",
+            className = "GetUserRequest",
+            companionName = "Factory",
+        )
+
+        assertContains(code, "fun GetUserRequest.Factory.from(ctx: RoutingContext)")
+        assertContains(code, "fun GetUserRequest.Factory.route(router: Router")
+        assertTrue(!code.contains("GetUserRequest.Companion"))
+    }
 }

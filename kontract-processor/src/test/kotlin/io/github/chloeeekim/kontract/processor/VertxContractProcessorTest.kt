@@ -453,6 +453,100 @@ class VertxContractProcessorTest {
         assertTrue(!generated.contains("val response = handler"), "Should not contain response handler: $generated")
     }
 
+    // --- Companion extensions ---
+
+    @Test
+    fun `should generate companion extensions when companion object exists`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "/test/:id")
+            data class TestRequest(
+                @PathParam val id: Long,
+            ) {
+                companion object
+            }
+        """)
+
+        val (_, compilation) = compileWithResult(src)
+        val extensions = findGeneratedSource(compilation, "TestRequestExtensions.kt")
+
+        assertContains(extensions, "fun TestRequest.Companion.from(ctx: RoutingContext)")
+        assertContains(extensions, "fun TestRequest.Companion.route(router: Router")
+    }
+
+    @Test
+    fun `should generate routeWithResponse companion extension when response specified`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            data class UserResponse(val id: Long)
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "/users/:id", response = UserResponse::class)
+            data class GetUserRequest(
+                @PathParam val id: Long,
+            ) {
+                companion object
+            }
+        """)
+
+        val (_, compilation) = compileWithResult(src)
+        val extensions = findGeneratedSource(compilation, "GetUserRequestExtensions.kt")
+
+        assertContains(extensions, "fun GetUserRequest.Companion.routeWithResponse(router: Router")
+    }
+
+    @Test
+    fun `should not generate extensions when no companion object`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "/test/:id")
+            data class TestRequest(
+                @PathParam val id: Long,
+            )
+        """)
+
+        val (_, compilation) = compileWithResult(src)
+        val generatedFiles = compilation.kspSourcesDir
+            .walkTopDown()
+            .filter { it.isFile && it.extension == "kt" }
+            .toList()
+
+        assertTrue(generatedFiles.none { it.name == "TestRequestExtensions.kt" })
+    }
+
+    @Test
+    fun `should use named companion in extensions`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "/test/:id")
+            data class TestRequest(
+                @PathParam val id: Long,
+            ) {
+                companion object Factory
+            }
+        """)
+
+        val (_, compilation) = compileWithResult(src)
+        val extensions = findGeneratedSource(compilation, "TestRequestExtensions.kt")
+
+        assertContains(extensions, "fun TestRequest.Factory.from(ctx: RoutingContext)")
+        assertContains(extensions, "fun TestRequest.Factory.route(router: Router")
+        assertTrue(!extensions.contains("TestRequest.Companion"))
+    }
+
+    // --- No-content ---
+
     @Test
     fun `should skip body for 204 status code and warn`() {
         val src = SourceFile.kotlin("TestRequest.kt", """

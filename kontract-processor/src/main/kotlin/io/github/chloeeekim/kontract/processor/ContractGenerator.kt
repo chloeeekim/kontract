@@ -5,6 +5,39 @@ package io.github.chloeeekim.kontract.processor
  */
 object ContractGenerator {
 
+    fun generateCompanionExtensions(
+        packageName: String,
+        className: String,
+        responseType: String? = null,
+        companionName: String = "Companion",
+    ): String {
+        val contractName = "${className}Contract"
+        val responseSimpleName = responseType?.substringAfterLast(".")
+
+        return buildString {
+            if (packageName.isNotEmpty()) {
+                appendLine("package $packageName")
+                appendLine()
+            }
+            appendLine("import io.vertx.ext.web.Router")
+            appendLine("import io.vertx.ext.web.RoutingContext")
+            if (responseType != null) {
+                appendLine("import $responseType")
+            }
+            appendLine()
+            appendLine("fun $className.$companionName.from(ctx: RoutingContext) =")
+            appendLine("    $contractName.from(ctx)")
+            appendLine()
+            appendLine("fun $className.$companionName.route(router: Router, handler: ($className, RoutingContext) -> Unit) =")
+            appendLine("    $contractName.route(router, handler)")
+            if (responseSimpleName != null) {
+                appendLine()
+                appendLine("fun $className.$companionName.routeWithResponse(router: Router, handler: ($className, RoutingContext) -> $responseSimpleName) =")
+                appendLine("    $contractName.routeWithResponse(router, handler)")
+            }
+        }
+    }
+
     fun generate(
         packageName: String,
         className: String,

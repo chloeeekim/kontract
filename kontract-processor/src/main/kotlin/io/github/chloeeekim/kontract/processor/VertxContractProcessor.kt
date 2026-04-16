@@ -109,6 +109,31 @@ class VertxContractProcessor(
         file.close()
 
         logger.info("Generated $contractName for $className")
+
+        // If a companion object exists, generate a companion extension function.
+        val companionDecl = classDecl.declarations
+            .filterIsInstance<KSClassDeclaration>()
+            .firstOrNull { it.isCompanionObject }
+
+        if (companionDecl != null) {
+            val companionName = companionDecl.simpleName.asString()
+            val extensionCode = ContractGenerator.generateCompanionExtensions(
+                packageName = packageName,
+                className = className,
+                responseType = responseType,
+                companionName = companionName,
+            )
+
+            val extensionFile = codeGenerator.createNewFile(
+                dependencies = Dependencies(aggregating = false, classDecl.containingFile!!),
+                packageName = packageName,
+                fileName = "${className}Extensions",
+            )
+            extensionFile.write(extensionCode.toByteArray())
+            extensionFile.close()
+
+            logger.info("Generated companion extensions for $className")
+        }
     }
 
     private fun extractParamInfo(param: KSValueParameter): ParamInfo {
