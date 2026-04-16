@@ -9,6 +9,10 @@ import kotlin.test.assertTrue
 
 class KontractPluginTest {
 
+    companion object {
+        private val KOTLIN_VERSION = System.getProperty("kotlin.version") ?: "2.0.0"
+    }
+
     @TempDir
     lateinit var projectDir: File
 
@@ -119,7 +123,7 @@ class KontractPluginTest {
 
         File(projectDir, "build.gradle.kts").writeText("""
             plugins {
-                kotlin("jvm") version "2.0.0"
+                kotlin("jvm") version "$KOTLIN_VERSION"
                 id("io.github.chloeeekim.kontract")
             }
 

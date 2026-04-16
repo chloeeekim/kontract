@@ -11,6 +11,11 @@ dependencies {
     testImplementation(gradleTestKit())
 }
 
+tasks.test {
+    systemProperty("kotlin.version", libs.versions.kotlin.get())
+    systemProperty("ksp.version", libs.versions.ksp.get())
+}
+
 tasks.processResources {
     filesMatching("kontract.properties") {
         expand(

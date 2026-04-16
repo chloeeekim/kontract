@@ -9,17 +9,17 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * KSP 플러그인과 함께 적용 시 configureWithKsp 로직을 검증하는 통합 테스트.
+ * Integration test to verify the configureWithKsp logic when applied together with the KSP plugin.
  *
- * TestKit은 독립된 Gradle 프로세스에서 실행되므로,
- * pluginManagement에 gradlePluginPortal()을 등록하여 KSP 플러그인을 해석한다.
+ * Since TestKit runs in an isolated Gradle process,
+ * gradlePluginPortal() is added to pluginManagement to resolve the KSP plugin.
  */
 class KspIntegrationTest {
 
     companion object {
-        // KSP 버전은 루트 build.gradle.kts의 Kotlin/KSP 버전과 일치해야 한다.
-        private const val KOTLIN_VERSION = "2.0.0"
-        private const val KSP_VERSION = "2.0.0-1.0.24"
+        // System properties injected from Version Catalog
+        private val KOTLIN_VERSION = System.getProperty("kotlin.version") ?: "2.0.0"
+        private val KSP_VERSION = System.getProperty("ksp.version") ?: "2.0.0-1.0.24"
     }
 
     @TempDir
@@ -27,7 +27,6 @@ class KspIntegrationTest {
 
     @BeforeEach
     fun setup() {
-        // settings.gradle.kts — KSP 플러그인 해석을 위한 pluginManagement 설정
         File(projectDir, "settings.gradle.kts").writeText("""
             pluginManagement {
                 repositories {
