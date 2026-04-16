@@ -4,7 +4,7 @@ import com.google.devtools.ksp.processing.SymbolProcessor
 import com.google.devtools.ksp.processing.SymbolProcessorEnvironment
 import com.google.devtools.ksp.processing.SymbolProcessorProvider
 
-class VertxContractProcessorProvider : SymbolProcessorProvider {
+class KontractProcessorProvider : SymbolProcessorProvider {
 
     override fun create(environment: SymbolProcessorEnvironment): SymbolProcessor {
         val serializerOption = environment.options["kontract.serializer"] ?: "jackson"
@@ -17,7 +17,7 @@ class VertxContractProcessorProvider : SymbolProcessorProvider {
             }
         }
 
-        return VertxContractProcessor(
+        return KontractProcessor(
             codeGenerator = environment.codeGenerator,
             logger = environment.logger,
             serializerMode = serializerMode,

@@ -3,7 +3,7 @@ package io.github.chloeeekim.kontract.processor
 /**
  * Generates the Kotlin source code for the Contract object.
  */
-object ContractGenerator {
+object KontractCodeGenerator {
 
     fun generateCompanionExtensions(
         packageName: String,

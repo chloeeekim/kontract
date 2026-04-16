@@ -11,7 +11,7 @@ import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSValueParameter
 import com.google.devtools.ksp.validate
 
-class VertxContractProcessor(
+class KontractProcessor(
     private val codeGenerator: CodeGenerator,
     private val logger: KSPLogger,
     private val serializerMode: SerializerMode = SerializerMode.JACKSON,
@@ -64,7 +64,7 @@ class VertxContractProcessor(
             )
         }
 
-        if (statusCode in ContractGenerator.NO_BODY_STATUS_CODES && responseType != null) {
+        if (statusCode in KontractCodeGenerator.NO_BODY_STATUS_CODES && responseType != null) {
             logger.warn(
                 "statusCode $statusCode on ${classDecl.simpleName.asString()} does not allow a response body. " +
                         "The response object will be ignored in routeWithResponse().",
@@ -89,7 +89,7 @@ class VertxContractProcessor(
         val className = classDecl.simpleName.asString()
         val contractName = "${className}Contract"
 
-        val code = ContractGenerator.generate(
+        val code = KontractCodeGenerator.generate(
             packageName = packageName,
             className = className,
             httpMethod = method,
@@ -117,7 +117,7 @@ class VertxContractProcessor(
 
         if (companionDecl != null) {
             val companionName = companionDecl.simpleName.asString()
-            val extensionCode = ContractGenerator.generateCompanionExtensions(
+            val extensionCode = KontractCodeGenerator.generateCompanionExtensions(
                 packageName = packageName,
                 className = className,
                 responseType = responseType,

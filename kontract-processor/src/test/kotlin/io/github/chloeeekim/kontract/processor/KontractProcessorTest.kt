@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test
 import kotlin.test.assertContains
 import kotlin.test.assertTrue
 
-class VertxContractProcessorTest {
+class KontractProcessorTest {
 
     @Test
     fun `should generate contract for simple GET endpoint`() {
@@ -686,7 +686,7 @@ class VertxContractProcessorTest {
             sources = listOf(src)
             inheritClassPath = true
             configureKsp(useKsp2 = true) {
-                symbolProcessorProviders += VertxContractProcessorProvider()
+                symbolProcessorProviders += KontractProcessorProvider()
             }
             kspProcessorOptions = mutableMapOf("kontract.serializer" to "kotlinx")
         }
@@ -945,7 +945,7 @@ class VertxContractProcessorTest {
             this.sources = sources.toList()
             inheritClassPath = true
             configureKsp(useKsp2 = true) {
-                symbolProcessorProviders += VertxContractProcessorProvider()
+                symbolProcessorProviders += KontractProcessorProvider()
             }
         }
         val result = compilation.compile()

@@ -5,7 +5,7 @@ import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-class ContractGeneratorTest {
+class KontractCodeGeneratorTest {
 
     private fun param(
         name: String,
@@ -34,7 +34,7 @@ class ContractGeneratorTest {
     )
 
     private fun generate(params: List<ParamInfo>, className: String = "TestRequest", path: String = "/test") =
-        ContractGenerator.generate(
+        KontractCodeGenerator.generate(
             packageName = "com.example",
             className = className,
             httpMethod = "GET",
@@ -395,7 +395,7 @@ class ContractGeneratorTest {
 
     @Test
     fun `should generate body param with kotlinx serialization`() {
-        val code = ContractGenerator.generate(
+        val code = KontractCodeGenerator.generate(
             packageName = "com.example",
             className = "TestRequest",
             httpMethod = "POST",
@@ -413,7 +413,7 @@ class ContractGeneratorTest {
 
     @Test
     fun `should not generate objectMapper field when using kotlinx`() {
-        val code = ContractGenerator.generate(
+        val code = KontractCodeGenerator.generate(
             packageName = "com.example",
             className = "TestRequest",
             httpMethod = "POST",
@@ -443,7 +443,7 @@ class ContractGeneratorTest {
 
     @Test
     fun `should generate route method with POST`() {
-        val code = ContractGenerator.generate(
+        val code = KontractCodeGenerator.generate(
             packageName = "com.example",
             className = "CreateUserRequest",
             httpMethod = "POST",
@@ -456,7 +456,7 @@ class ContractGeneratorTest {
 
     @Test
     fun `should generate route method with PUT`() {
-        val code = ContractGenerator.generate(
+        val code = KontractCodeGenerator.generate(
             packageName = "com.example",
             className = "UpdateUserRequest",
             httpMethod = "PUT",
@@ -469,7 +469,7 @@ class ContractGeneratorTest {
 
     @Test
     fun `should generate route method with DELETE`() {
-        val code = ContractGenerator.generate(
+        val code = KontractCodeGenerator.generate(
             packageName = "com.example",
             className = "DeleteUserRequest",
             httpMethod = "DELETE",
@@ -482,7 +482,7 @@ class ContractGeneratorTest {
 
     @Test
     fun `should generate route method with PATCH`() {
-        val code = ContractGenerator.generate(
+        val code = KontractCodeGenerator.generate(
             packageName = "com.example",
             className = "PatchUserRequest",
             httpMethod = "PATCH",
@@ -521,7 +521,7 @@ class ContractGeneratorTest {
 
     @Test
     fun `should generate typed route overload when response type specified`() {
-        val code = ContractGenerator.generate(
+        val code = KontractCodeGenerator.generate(
             packageName = "com.example",
             className = "GetUserRequest",
             httpMethod = "GET",
@@ -555,7 +555,7 @@ class ContractGeneratorTest {
 
     @Test
     fun `should generate typed route with custom status code`() {
-        val code = ContractGenerator.generate(
+        val code = KontractCodeGenerator.generate(
             packageName = "com.example",
             className = "CreateUserRequest",
             httpMethod = "POST",
@@ -570,7 +570,7 @@ class ContractGeneratorTest {
 
     @Test
     fun `should generate typed route with kotlinx serialization`() {
-        val code = ContractGenerator.generate(
+        val code = KontractCodeGenerator.generate(
             packageName = "com.example",
             className = "GetUserRequest",
             httpMethod = "GET",
@@ -586,7 +586,7 @@ class ContractGeneratorTest {
 
     @Test
     fun `should import response type`() {
-        val code = ContractGenerator.generate(
+        val code = KontractCodeGenerator.generate(
             packageName = "com.example",
             className = "GetUserRequest",
             httpMethod = "GET",
@@ -600,7 +600,7 @@ class ContractGeneratorTest {
 
     @Test
     fun `should generate objectMapper when response type but no BodyParam`() {
-        val code = ContractGenerator.generate(
+        val code = KontractCodeGenerator.generate(
             packageName = "com.example",
             className = "GetUserRequest",
             httpMethod = "GET",
@@ -614,7 +614,7 @@ class ContractGeneratorTest {
 
     @Test
     fun `should skip body serialization for 204 status code`() {
-        val code = ContractGenerator.generate(
+        val code = KontractCodeGenerator.generate(
             packageName = "com.example",
             className = "DeleteUserRequest",
             httpMethod = "DELETE",
@@ -632,7 +632,7 @@ class ContractGeneratorTest {
 
     @Test
     fun `should skip body serialization for 304 status code`() {
-        val code = ContractGenerator.generate(
+        val code = KontractCodeGenerator.generate(
             packageName = "com.example",
             className = "CheckRequest",
             httpMethod = "GET",
@@ -771,7 +771,7 @@ class ContractGeneratorTest {
 
     @Test
     fun `should generate companion extensions with from and route`() {
-        val code = ContractGenerator.generateCompanionExtensions(
+        val code = KontractCodeGenerator.generateCompanionExtensions(
             packageName = "com.example",
             className = "GetUserRequest",
         )
@@ -784,7 +784,7 @@ class ContractGeneratorTest {
 
     @Test
     fun `should generate routeWithResponse extension when response type specified`() {
-        val code = ContractGenerator.generateCompanionExtensions(
+        val code = KontractCodeGenerator.generateCompanionExtensions(
             packageName = "com.example",
             className = "GetUserRequest",
             responseType = "com.example.UserResponse",
@@ -796,7 +796,7 @@ class ContractGeneratorTest {
 
     @Test
     fun `should not generate routeWithResponse extension when no response type`() {
-        val code = ContractGenerator.generateCompanionExtensions(
+        val code = KontractCodeGenerator.generateCompanionExtensions(
             packageName = "com.example",
             className = "GetUserRequest",
         )
@@ -806,7 +806,7 @@ class ContractGeneratorTest {
 
     @Test
     fun `should import response type in companion extensions`() {
-        val code = ContractGenerator.generateCompanionExtensions(
+        val code = KontractCodeGenerator.generateCompanionExtensions(
             packageName = "com.example",
             className = "GetUserRequest",
             responseType = "com.other.UserResponse",
@@ -817,7 +817,7 @@ class ContractGeneratorTest {
 
     @Test
     fun `should use named companion in extensions`() {
-        val code = ContractGenerator.generateCompanionExtensions(
+        val code = KontractCodeGenerator.generateCompanionExtensions(
             packageName = "com.example",
             className = "GetUserRequest",
             companionName = "Factory",
