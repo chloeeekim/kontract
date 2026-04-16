@@ -21,7 +21,7 @@ object KontractCodeGenerator {
             }
             appendLine("import io.vertx.ext.web.Router")
             appendLine("import io.vertx.ext.web.RoutingContext")
-            if (responseType != null) {
+            if (responseType != null && responseType.substringBeforeLast(".") != packageName) {
                 appendLine("import $responseType")
             }
             appendLine()

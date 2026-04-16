@@ -924,6 +924,17 @@ class KontractCodeGeneratorTest {
     }
 
     @Test
+    fun `should not import same-package response type in companion extensions`() {
+        val code = KontractCodeGenerator.generateCompanionExtensions(
+            packageName = "com.example",
+            className = "GetUserRequest",
+            responseType = "com.example.UserResponse",
+        )
+
+        assertFalse(code.contains("import com.example.UserResponse"), "same-package response type should not be imported in companion extensions")
+    }
+
+    @Test
     fun `should use named companion in extensions`() {
         val code = KontractCodeGenerator.generateCompanionExtensions(
             packageName = "com.example",
