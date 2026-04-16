@@ -5,7 +5,6 @@ plugins {
 
 dependencies {
     implementation(gradleApi())
-    implementation(kotlin("stdlib"))
     compileOnly(libs.kotlin.gradle.plugin)
     testImplementation(libs.junit.jupiter)
     testImplementation(gradleTestKit())
