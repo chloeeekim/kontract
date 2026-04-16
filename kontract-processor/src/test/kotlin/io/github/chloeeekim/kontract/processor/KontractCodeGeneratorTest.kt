@@ -504,7 +504,7 @@ class KontractCodeGeneratorTest {
         assertContains(code, "try {")
         assertContains(code, "val request = from(ctx)")
         assertContains(code, "} catch (e: BadRequestException) {")
-        assertContains(code, "ctx.response().setStatusCode(400).end(e.message)")
+        assertContains(code, "KontractConfig.errorHandler.handleError(ctx, e)")
     }
 
     @Test
@@ -515,6 +515,16 @@ class KontractCodeGeneratorTest {
         )
 
         assertContains(code, "import io.vertx.ext.web.Router")
+    }
+
+    @Test
+    fun `should import ContractConfig`() {
+        val code = generate(
+            listOf(param("id", "Long", ParamSource.PATH)),
+            path = "/test/:id",
+        )
+
+        assertContains(code, "import io.github.chloeeekim.kontract.annotation.KontractConfig")
     }
 
     // --- Response type ---

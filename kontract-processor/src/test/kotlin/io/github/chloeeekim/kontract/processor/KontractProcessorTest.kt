@@ -299,7 +299,7 @@ class KontractProcessorTest {
         assertContains(generated, "val request = from(ctx)")
         assertContains(generated, "handler(request, ctx)")
         assertContains(generated, "} catch (e: BadRequestException) {")
-        assertContains(generated, "ctx.response().setStatusCode(400).end(e.message)")
+        assertContains(generated, "KontractConfig.errorHandler.handleError(ctx, e)")
     }
 
     @Test

@@ -97,6 +97,7 @@ object KontractCodeGenerator {
     private fun collectImports(params: List<ParamInfo>, serializerMode: SerializerMode, responseType: String? = null): Set<String> {
         val imports = mutableSetOf(
             "io.github.chloeeekim.kontract.annotation.BadRequestException",
+            "io.github.chloeeekim.kontract.annotation.KontractConfig",
             "io.vertx.ext.web.Router",
             "io.vertx.ext.web.RoutingContext",
         )
@@ -170,7 +171,7 @@ object KontractCodeGenerator {
                 handler(request, ctx)
                 ctx.response().setStatusCode($statusCode).end()
             } catch (e: BadRequestException) {
-                ctx.response().setStatusCode(400).end(e.message)
+                KontractConfig.errorHandler.handleError(ctx, e)
             }
         }
     }"""
@@ -190,7 +191,7 @@ object KontractCodeGenerator {
                     .putHeader("Content-Type", "application/json")
                     .end($serializeExpr)
             } catch (e: BadRequestException) {
-                ctx.response().setStatusCode(400).end(e.message)
+                KontractConfig.errorHandler.handleError(ctx, e)
             }
         }
     }"""
@@ -204,7 +205,7 @@ object KontractCodeGenerator {
                 val request = from(ctx)
                 handler(request, ctx)
             } catch (e: BadRequestException) {
-                ctx.response().setStatusCode(400).end(e.message)
+                KontractConfig.errorHandler.handleError(ctx, e)
             }
         }
     }"""
