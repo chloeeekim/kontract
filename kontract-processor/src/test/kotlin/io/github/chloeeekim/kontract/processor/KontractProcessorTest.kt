@@ -8,6 +8,7 @@ import com.tschuchort.compiletesting.kspProcessorOptions
 import com.tschuchort.compiletesting.kspSourcesDir
 import org.junit.jupiter.api.Test
 import kotlin.test.assertContains
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class KontractProcessorTest {
@@ -391,7 +392,7 @@ class KontractProcessorTest {
 
         val generated = compileAndFindSource(src, "TestRequestContract.kt")
 
-        assertContains(generated, "import com.example.TestType")
+        assertFalse(generated.contains("import com.example.TestType"), "same-package Enum should not be imported")
     }
 
     // --- Response type ---

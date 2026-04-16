@@ -3,6 +3,7 @@ package io.github.chloeeekim.kontract.processor
 import org.junit.jupiter.api.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class KontractCodeGeneratorTest {
@@ -166,12 +167,12 @@ class KontractCodeGeneratorTest {
     }
 
     @Test
-    fun `should add import for Enum types`() {
+    fun `should add import for Enum types from different package`() {
         val code = generate(
-            listOf(param("type", "TestType", ParamSource.QUERY, isEnum = true, qualifiedTypeName = "com.example.TestType")),
+            listOf(param("type", "TestType", ParamSource.QUERY, isEnum = true, qualifiedTypeName = "com.other.TestType")),
         )
 
-        assertContains(code, "import com.example.TestType")
+        assertContains(code, "import com.other.TestType")
     }
 
     // --- Default values ---
@@ -384,12 +385,12 @@ class KontractCodeGeneratorTest {
     }
 
     @Test
-    fun `should add imports for body param`() {
+    fun `should add imports for body param from different package`() {
         val code = generate(
-            listOf(param("body", "AuthPayload", ParamSource.BODY, qualifiedTypeName = "com.example.AuthPayload")),
+            listOf(param("body", "AuthPayload", ParamSource.BODY, qualifiedTypeName = "com.other.AuthPayload")),
         )
 
-        assertContains(code, "import com.example.AuthPayload")
+        assertContains(code, "import com.other.AuthPayload")
         assertContains(code, "import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper")
     }
 
@@ -527,6 +528,103 @@ class KontractCodeGeneratorTest {
         assertContains(code, "import io.github.chloeeekim.kontract.annotation.KontractConfig")
     }
 
+    // --- Same-package import filtering ---
+
+    @Test
+    fun `should not import Enum type from same package`() {
+        val code = KontractCodeGenerator.generate(
+            packageName = "com.example",
+            className = "TestRequest",
+            httpMethod = "GET",
+            path = "/test",
+            params = listOf(param("type", "TestType", ParamSource.QUERY, isEnum = true, qualifiedTypeName = "com.example.TestType")),
+        )
+
+        assertFalse(code.contains("import com.example.TestType"), "same-package Enum should not be imported")
+    }
+
+    @Test
+    fun `should import Enum type from different package`() {
+        val code = KontractCodeGenerator.generate(
+            packageName = "com.example",
+            className = "TestRequest",
+            httpMethod = "GET",
+            path = "/test",
+            params = listOf(param("type", "TestType", ParamSource.QUERY, isEnum = true, qualifiedTypeName = "com.other.TestType")),
+        )
+
+        assertContains(code, "import com.other.TestType")
+    }
+
+    @Test
+    fun `should not import Body type from same package`() {
+        val code = KontractCodeGenerator.generate(
+            packageName = "com.example",
+            className = "TestRequest",
+            httpMethod = "POST",
+            path = "/test",
+            params = listOf(param("body", "Payload", ParamSource.BODY, qualifiedTypeName = "com.example.Payload")),
+        )
+
+        assertFalse(code.contains("import com.example.Payload"), "same-package Body type should not be imported")
+    }
+
+    @Test
+    fun `should not import response type from same package`() {
+        val code = KontractCodeGenerator.generate(
+            packageName = "com.example",
+            className = "TestRequest",
+            httpMethod = "GET",
+            path = "/test/:id",
+            params = listOf(param("id", "Long", ParamSource.PATH)),
+            responseType = "com.example.TestResponse",
+        )
+
+        assertFalse(code.contains("import com.example.TestResponse"), "same-package response type should not be imported")
+    }
+
+    @Test
+    fun `should import response type from different package`() {
+        val code = KontractCodeGenerator.generate(
+            packageName = "com.example",
+            className = "TestRequest",
+            httpMethod = "GET",
+            path = "/test/:id",
+            params = listOf(param("id", "Long", ParamSource.PATH)),
+            responseType = "com.other.TestResponse",
+        )
+
+        assertContains(code, "import com.other.TestResponse")
+    }
+
+    @Test
+    fun `should not import converter type from same package`() {
+        val code = KontractCodeGenerator.generate(
+            packageName = "com.example",
+            className = "TestRequest",
+            httpMethod = "GET",
+            path = "/test/:id",
+            params = listOf(param("id", "UUID", ParamSource.PATH, qualifiedTypeName = "com.example.UUID", converterClass = "com.example.UUIDConverter")),
+        )
+
+        assertFalse(code.contains("import com.example.UUIDConverter"), "same-package converter should not be imported")
+        assertFalse(code.contains("import com.example.UUID"), "same-package converter target type should not be imported")
+    }
+
+    @Test
+    fun `should import converter type from different package`() {
+        val code = KontractCodeGenerator.generate(
+            packageName = "com.example",
+            className = "TestRequest",
+            httpMethod = "GET",
+            path = "/test/:id",
+            params = listOf(param("id", "UUID", ParamSource.PATH, qualifiedTypeName = "java.util.UUID", converterClass = "com.other.UUIDConverter")),
+        )
+
+        assertContains(code, "import com.other.UUIDConverter")
+        assertContains(code, "import java.util.UUID")
+    }
+
     // --- Response type ---
 
     @Test
@@ -595,7 +693,7 @@ class KontractCodeGeneratorTest {
     }
 
     @Test
-    fun `should import response type`() {
+    fun `should skip import for same-package response type in typed route`() {
         val code = KontractCodeGenerator.generate(
             packageName = "com.example",
             className = "GetUserRequest",
@@ -605,7 +703,7 @@ class KontractCodeGeneratorTest {
             responseType = "com.example.UserResponse",
         )
 
-        assertContains(code, "import com.example.UserResponse")
+        assertFalse(code.contains("import com.example.UserResponse"), "same-package response type should not be imported")
     }
 
     @Test

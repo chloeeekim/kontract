@@ -51,7 +51,7 @@ object KontractCodeGenerator {
         val contractName = "${className}Contract"
         val parsingLines = params.joinToString("\n\n") { generateParamExtraction(it, serializerMode) }
         val constructorArgs = params.joinToString("\n") { "            ${it.name} = ${it.name}," }
-        val imports = collectImports(params, serializerMode, responseType)
+        val imports = collectImports(params, serializerMode, responseType, packageName)
         val responseSimpleName = responseType?.substringAfterLast(".")
         val needsObjectMapper = serializerMode == SerializerMode.JACKSON &&
                 (params.any { it.source == ParamSource.BODY } || responseType != null)
@@ -94,7 +94,12 @@ object KontractCodeGenerator {
         }
     }
 
-    private fun collectImports(params: List<ParamInfo>, serializerMode: SerializerMode, responseType: String? = null): Set<String> {
+    private fun collectImports(
+        params: List<ParamInfo>,
+        serializerMode: SerializerMode,
+        responseType: String? = null,
+        packageName: String = "",
+    ): Set<String> {
         val imports = mutableSetOf(
             "io.github.chloeeekim.kontract.annotation.BadRequestException",
             "io.github.chloeeekim.kontract.annotation.KontractConfig",
@@ -103,14 +108,14 @@ object KontractCodeGenerator {
         )
         for (param in params) {
             if (param.isEnum) {
-                imports.add(param.qualifiedTypeName)
+                imports.addIfDifferentPackage(param.qualifiedTypeName, packageName)
             }
             if (param.converterClass != null) {
-                imports.add(param.converterClass)
-                imports.add(param.qualifiedTypeName)
+                imports.addIfDifferentPackage(param.converterClass, packageName)
+                imports.addIfDifferentPackage(param.qualifiedTypeName, packageName)
             }
             if (param.source == ParamSource.BODY) {
-                imports.add(param.qualifiedTypeName)
+                imports.addIfDifferentPackage(param.qualifiedTypeName, packageName)
                 when (serializerMode) {
                     SerializerMode.JACKSON -> imports.add("com.fasterxml.jackson.module.kotlin.jacksonObjectMapper")
                     SerializerMode.KOTLINX -> imports.add("kotlinx.serialization.json.Json")
@@ -118,13 +123,19 @@ object KontractCodeGenerator {
             }
         }
         if (responseType != null) {
-            imports.add(responseType)
+            imports.addIfDifferentPackage(responseType, packageName)
             when (serializerMode) {
                 SerializerMode.JACKSON -> imports.add("com.fasterxml.jackson.module.kotlin.jacksonObjectMapper")
                 SerializerMode.KOTLINX -> imports.add("kotlinx.serialization.json.Json")
             }
         }
         return imports
+    }
+
+    private fun MutableSet<String>.addIfDifferentPackage(qualifiedName: String, packageName: String) {
+        if (qualifiedName.substringBeforeLast(".") != packageName) {
+            add(qualifiedName)
+        }
     }
 
     private fun collectRegexFields(params: List<ParamInfo>): List<Pair<String, String>> {
