@@ -64,56 +64,86 @@ object KontractCodeGenerator {
         coroutines: Boolean = false,
     ): String {
         val contractName = "${className}Contract"
-        val parsingLines = params.joinToString("\n\n") { generateParamExtraction(it, serializerMode) }
-        val constructorArgs = params.joinToString("\n") { "            ${it.name} = ${it.name}," }
         val imports = collectImports(params, serializerMode, responseType, packageName, coroutines)
         val responseSimpleName = responseType?.substringAfterLast(".")
+
+        return buildString {
+            appendLine(generatePackageAndImports(packageName, imports))
+            appendLine("object $contractName {")
+            append(generateFields(params, serializerMode, responseType))
+            appendLine()
+            appendLine(generateFromMethod(className, params, serializerMode))
+            appendLine()
+            appendLine(generateRouteMethods(className, responseSimpleName, httpMethod, path, statusCode, serializerMode, coroutines))
+            appendLine("}")
+        }
+    }
+
+    private fun generatePackageAndImports(packageName: String, imports: Set<String>): String = buildString {
+        if (packageName.isNotEmpty()) {
+            appendLine("package $packageName")
+            appendLine()
+        }
+        imports.sorted().forEach { appendLine("import $it") }
+    }
+
+    private fun generateFields(params: List<ParamInfo>, serializerMode: SerializerMode, responseType: String?): String {
         val needsObjectMapper = serializerMode == SerializerMode.JACKSON &&
                 (params.any { it.source == ParamSource.BODY } || responseType != null)
 
         return buildString {
-            if (packageName.isNotEmpty()) {
-                appendLine("package $packageName")
-                appendLine()
-            }
-            imports.sorted().forEach { appendLine("import $it") }
-            appendLine()
-            appendLine("object $contractName {")
             if (needsObjectMapper) {
                 appendLine()
                 appendLine("    private val objectMapper = jacksonObjectMapper()")
             }
-            val converterFields = collectConverterFields(params)
-            for ((fieldName, simpleName) in converterFields) {
+            for ((fieldName, simpleName) in collectConverterFields(params)) {
                 appendLine("    private val $fieldName = $simpleName()")
             }
-            val regexFields = collectRegexFields(params)
-            for ((fieldName, regex) in regexFields) {
+            for ((fieldName, regex) in collectRegexFields(params)) {
                 appendLine("    private val $fieldName = Regex(\"${escapeStringLiteral(regex)}\")")
             }
-            appendLine()
+        }
+    }
+
+    private fun generateFromMethod(className: String, params: List<ParamInfo>, serializerMode: SerializerMode): String {
+        val parsingLines = params.joinToString("\n\n") { generateParamExtraction(it, serializerMode) }
+        val constructorArgs = params.joinToString("\n") { "            ${it.name} = ${it.name}," }
+
+        return buildString {
             appendLine("    fun from(ctx: RoutingContext): $className {")
             appendLine(parsingLines.prependIndent("        "))
             appendLine()
             appendLine("        return $className(")
             appendLine(constructorArgs)
             appendLine("        )")
-            appendLine("    }")
+            append("    }")
+        }
+    }
+
+    private fun generateRouteMethods(
+        className: String,
+        responseSimpleName: String?,
+        httpMethod: String,
+        path: String,
+        statusCode: Int,
+        serializerMode: SerializerMode,
+        coroutines: Boolean,
+    ): String = buildString {
+        append(generateRouteMethodInternal(className, httpMethod, path, isSuspend = false))
+        if (responseSimpleName != null) {
             appendLine()
-            appendLine(generateRouteMethod(className, httpMethod, path))
+            appendLine()
+            append(generateTypedRouteMethodInternal(className, responseSimpleName, httpMethod, path, statusCode, serializerMode, isSuspend = false))
+        }
+        if (coroutines) {
+            appendLine()
+            appendLine()
+            append(generateRouteMethodInternal(className, httpMethod, path, isSuspend = true))
             if (responseSimpleName != null) {
                 appendLine()
-                appendLine(generateTypedRouteMethod(className, responseSimpleName, httpMethod, path, statusCode, serializerMode))
-            }
-            if (coroutines) {
                 appendLine()
-                appendLine(generateCoRouteMethod(className, httpMethod, path))
-                if (responseSimpleName != null) {
-                    appendLine()
-                    appendLine(generateCoTypedRouteMethod(className, responseSimpleName, httpMethod, path, statusCode, serializerMode))
-                }
+                append(generateTypedRouteMethodInternal(className, responseSimpleName, httpMethod, path, statusCode, serializerMode, isSuspend = true))
             }
-            appendLine("}")
         }
     }
 
@@ -192,53 +222,32 @@ object KontractCodeGenerator {
 
     internal val NO_BODY_STATUS_CODES = setOf(204, 205, 304)
 
-    private fun generateTypedRouteMethod(
-        className: String,
-        responseSimpleName: String,
-        httpMethod: String,
-        path: String,
-        statusCode: Int,
-        serializerMode: SerializerMode,
-    ): String {
+    // isSuspend=true: coRoute (coroutine based asynchronous handler)
+    // isSuspend=false: route (synchronous handler)
+    private fun generateRouteMethodInternal(className: String, httpMethod: String, path: String, isSuspend: Boolean): String {
         val routerMethod = httpMethod.lowercase()
+        val methodName = if (isSuspend) "coRoute" else "route"
+        val suspendKeyword = if (isSuspend) "suspend " else ""
+        val scopeParam = if (isSuspend) "scope: CoroutineScope, " else ""
+        val catchAll = if (isSuspend) """
+                } catch (e: Exception) {
+                    ctx.fail(e)""" else ""
 
-        if (statusCode in NO_BODY_STATUS_CODES) {
-            return """    fun routeWithResponse(router: Router, handler: ($className, RoutingContext) -> $responseSimpleName) {
+        return if (isSuspend) {
+            """    fun $methodName(${scopeParam}router: Router, handler: ${suspendKeyword}($className, RoutingContext) -> Unit) {
         router.$routerMethod("$path").handler { ctx ->
-            try {
-                val request = from(ctx)
-                handler(request, ctx)
-                ctx.response().setStatusCode($statusCode).end()
-            } catch (e: BadRequestException) {
-                KontractConfig.errorHandler.handleError(ctx, e)
+            scope.launch {
+                try {
+                    val request = from(ctx)
+                    handler(request, ctx)
+                } catch (e: BadRequestException) {
+                    KontractConfig.errorHandler.handleError(ctx, e)$catchAll
+                }
             }
         }
     }"""
-        }
-
-        val serializeExpr = when (serializerMode) {
-            SerializerMode.JACKSON -> "objectMapper.writeValueAsString(response)"
-            SerializerMode.KOTLINX -> "Json.encodeToString(response)"
-        }
-        return """    fun routeWithResponse(router: Router, handler: ($className, RoutingContext) -> $responseSimpleName) {
-        router.$routerMethod("$path").handler { ctx ->
-            try {
-                val request = from(ctx)
-                val response = handler(request, ctx)
-                ctx.response()
-                    .setStatusCode($statusCode)
-                    .putHeader("Content-Type", "application/json")
-                    .end($serializeExpr)
-            } catch (e: BadRequestException) {
-                KontractConfig.errorHandler.handleError(ctx, e)
-            }
-        }
-    }"""
-    }
-
-    private fun generateRouteMethod(className: String, httpMethod: String, path: String): String {
-        val routerMethod = httpMethod.lowercase()
-        return """    fun route(router: Router, handler: ($className, RoutingContext) -> Unit) {
+        } else {
+            """    fun $methodName(${scopeParam}router: Router, handler: ${suspendKeyword}($className, RoutingContext) -> Unit) {
         router.$routerMethod("$path").handler { ctx ->
             try {
                 val request = from(ctx)
@@ -248,78 +257,66 @@ object KontractCodeGenerator {
             }
         }
     }"""
-    }
-
-    // Accepts a scope as a parameter so the user can control the lifecycle.
-    // In CoroutineVerticle, passing `this` ensures automatic cancellation when the Verticle is stopped.
-    private fun generateCoRouteMethod(className: String, httpMethod: String, path: String): String {
-        val routerMethod = httpMethod.lowercase()
-        return """    fun coRoute(scope: CoroutineScope, router: Router, handler: suspend ($className, RoutingContext) -> Unit) {
-        router.$routerMethod("$path").handler { ctx ->
-            scope.launch {
-                try {
-                    val request = from(ctx)
-                    handler(request, ctx)
-                } catch (e: BadRequestException) {
-                    ContractConfig.errorHandler.handleError(ctx, e)
-                } catch (e: Exception) {
-                    ctx.fail(e)
-                }
-            }
         }
-    }"""
     }
 
-    private fun generateCoTypedRouteMethod(
+    private fun generateTypedRouteMethodInternal(
         className: String,
         responseSimpleName: String,
         httpMethod: String,
         path: String,
         statusCode: Int,
         serializerMode: SerializerMode,
+        isSuspend: Boolean,
     ): String {
         val routerMethod = httpMethod.lowercase()
-
-        if (statusCode in NO_BODY_STATUS_CODES) {
-            return """    fun coRouteWithResponse(scope: CoroutineScope, router: Router, handler: suspend ($className, RoutingContext) -> $responseSimpleName) {
-        router.$routerMethod("$path").handler { ctx ->
-            scope.launch {
-                try {
-                    val request = from(ctx)
-                    handler(request, ctx)
-                    ctx.response().setStatusCode($statusCode).end()
-                } catch (e: BadRequestException) {
-                    ContractConfig.errorHandler.handleError(ctx, e)
+        val methodName = if (isSuspend) "coRouteWithResponse" else "routeWithResponse"
+        val suspendKeyword = if (isSuspend) "suspend " else ""
+        val scopeParam = if (isSuspend) "scope: CoroutineScope, " else ""
+        val catchAll = if (isSuspend) """
                 } catch (e: Exception) {
-                    ctx.fail(e)
-                }
-            }
-        }
-    }"""
-        }
+                    ctx.fail(e)""" else ""
 
-        val serializeExpr = when (serializerMode) {
-            SerializerMode.JACKSON -> "objectMapper.writeValueAsString(response)"
-            SerializerMode.KOTLINX -> "Json.encodeToString(response)"
-        }
-        return """    fun coRouteWithResponse(scope: CoroutineScope, router: Router, handler: suspend ($className, RoutingContext) -> $responseSimpleName) {
-        router.$routerMethod("$path").handler { ctx ->
-            scope.launch {
-                try {
-                    val request = from(ctx)
+        val handlerBody = if (statusCode in NO_BODY_STATUS_CODES) {
+            """val request = from(ctx)
+                    handler(request, ctx)
+                    ctx.response().setStatusCode($statusCode).end()"""
+        } else {
+            val serializeExpr = when (serializerMode) {
+                SerializerMode.JACKSON -> "objectMapper.writeValueAsString(response)"
+                SerializerMode.KOTLINX -> "Json.encodeToString(response)"
+            }
+            """val request = from(ctx)
                     val response = handler(request, ctx)
                     ctx.response()
                         .setStatusCode($statusCode)
                         .putHeader("Content-Type", "application/json")
-                        .end($serializeExpr)
+                        .end($serializeExpr)"""
+        }
+
+        return if (isSuspend) {
+            """    fun $methodName(${scopeParam}router: Router, handler: ${suspendKeyword}($className, RoutingContext) -> $responseSimpleName) {
+        router.$routerMethod("$path").handler { ctx ->
+            scope.launch {
+                try {
+                    $handlerBody
                 } catch (e: BadRequestException) {
-                    ContractConfig.errorHandler.handleError(ctx, e)
-                } catch (e: Exception) {
-                    ctx.fail(e)
+                    KontractConfig.errorHandler.handleError(ctx, e)$catchAll
                 }
             }
         }
     }"""
+        } else {
+            """    fun $methodName(${scopeParam}router: Router, handler: ${suspendKeyword}($className, RoutingContext) -> $responseSimpleName) {
+        router.$routerMethod("$path").handler { ctx ->
+            try {
+                $handlerBody
+            } catch (e: BadRequestException) {
+                KontractConfig.errorHandler.handleError(ctx, e)
+            }
+        }
+    }"""
+        }
     }
 
     private fun generateParamExtraction(param: ParamInfo, serializerMode: SerializerMode): String {
@@ -335,7 +332,6 @@ object KontractCodeGenerator {
 
         val validationLines = generateValidation(param)
         return if (validationLines.isEmpty()) parsing else "$parsing\n$validationLines"
-
     }
 
     private fun escapeStringLiteral(value: String): String {
@@ -398,27 +394,12 @@ object KontractCodeGenerator {
         }
 
         if (param.isEnum) {
-            return generateEnumParsing(
-                param,
-                paramName,
-                extractor,
-                paramKind
-            )
+            return generateEnumParsing(param, paramName, extractor, paramKind)
         }
 
         return when (param.typeName) {
-            "Long", "Int" -> generateNumericParsing(
-                param,
-                paramName,
-                extractor,
-                paramKind
-            )
-            "String" -> generateStringParsing(
-                param,
-                paramName,
-                extractor,
-                paramKind
-            )
+            "Long", "Int" -> generateNumericParsing(param, paramName, extractor, paramKind)
+            "String" -> generateStringParsing(param, paramName, extractor, paramKind)
             else -> error("Unsupported $paramKind param type: ${param.typeName}")
         }
     }
@@ -529,54 +510,38 @@ object KontractCodeGenerator {
 
     // --- Validation ---
 
+    private fun nullGuard(name: String, nullable: Boolean): String =
+        if (nullable) "$name != null && " else ""
+
     private fun generateValidation(param: ParamInfo): String {
         if (param.validations.isEmpty()) return ""
 
+        val name = param.name
+        val guard = nullGuard(name, param.nullable)
+
         return param.validations.joinToString("\n") { validation ->
-            val name = param.name
-            val nullCheck = param.nullable
-
             when (validation) {
-                is ValidationInfo.Min -> if (nullCheck) {
-                    """if ($name != null && $name < ${validation.value}) {
+                is ValidationInfo.Min ->
+                    """if (${guard}$name < ${validation.value}) {
     throw BadRequestException("$name must be >= ${validation.value}, but was $$name")
 }"""
-                } else {
-                    """if ($name < ${validation.value}) {
-    throw BadRequestException("$name must be >= ${validation.value}, but was $$name")
-}"""
-                }
 
-                is ValidationInfo.Max -> if (nullCheck) {
-                    """if ($name != null && $name > ${validation.value}) {
+                is ValidationInfo.Max ->
+                    """if (${guard}$name > ${validation.value}) {
     throw BadRequestException("$name must be <= ${validation.value}, but was $$name")
 }"""
-                } else {
-                    """if ($name > ${validation.value}) {
-    throw BadRequestException("$name must be <= ${validation.value}, but was $$name")
-}"""
-                }
 
-                is ValidationInfo.NotBlank -> {
+                is ValidationInfo.NotBlank ->
                     """if ($name.isNullOrBlank()) {
     throw BadRequestException("$name must not be blank")
 }"""
-                }
 
                 is ValidationInfo.Size -> generateSizeValidation(param, validation)
 
-                is ValidationInfo.Pattern -> {
-                    val fieldName = "${name}Pattern"
-                    if (nullCheck) {
-                        """if ($name != null && !$name.matches($fieldName)) {
+                is ValidationInfo.Pattern ->
+                    """if (${guard}!$name.matches(${name}Pattern)) {
     throw BadRequestException("$name must match pattern: ${validation.regex}")
 }"""
-                    } else {
-                        """if (!$name.matches($fieldName)) {
-    throw BadRequestException("$name must match pattern: ${validation.regex}")
-}"""
-                    }
-                }
             }
         }
     }
@@ -584,28 +549,13 @@ object KontractCodeGenerator {
     private fun generateSizeValidation(param: ParamInfo, validation: ValidationInfo.Size): String {
         val name = param.name
         val isString = param.typeName == "String"
+        val accessor = if (isString) "$name.length" else name
+        val label = if (isString) "$name length" else name
+        val condition = "$accessor < ${validation.min} || $accessor > ${validation.max}"
+        val fullCondition = if (param.nullable) "$name != null && ($condition)" else condition
 
-        return if (isString) {
-            val accessor = "$name.length"
-            if (param.nullable) {
-                """if ($name != null && ($accessor < ${validation.min} || $accessor > ${validation.max})) {
-    throw BadRequestException("$name length must be between ${validation.min} and ${validation.max}, but was $$accessor")
+        return """if ($fullCondition) {
+    throw BadRequestException("$label must be between ${validation.min} and ${validation.max}, but was $$accessor")
 }"""
-            } else {
-                """if ($accessor < ${validation.min} || $accessor > ${validation.max}) {
-    throw BadRequestException("$name length must be between ${validation.min} and ${validation.max}, but was $$accessor")
-}"""
-            }
-        } else {
-            if (param.nullable) {
-                """if ($name != null && ($name < ${validation.min} || $name > ${validation.max})) {
-    throw BadRequestException("$name must be between ${validation.min} and ${validation.max}, but was $$name")
-}"""
-            } else {
-                """if ($name < ${validation.min} || $name > ${validation.max}) {
-    throw BadRequestException("$name must be between ${validation.min} and ${validation.max}, but was $$name")
-}"""
-            }
-        }
     }
 }
