@@ -965,4 +965,76 @@ class KontractProcessorTest {
         )
         return file.readText()
     }
+
+    private fun compileKotlinxWithResponse(responseDecl: String, endpointAnnotation: String): JvmCompilationResult {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            $responseDecl
+
+            $endpointAnnotation
+            data class TestRequest(@PathParam val id: Long)
+        """)
+        val compilation = KotlinCompilation().apply {
+            sources = listOf(src)
+            inheritClassPath = true
+            configureKsp(useKsp2 = true) {
+                symbolProcessorProviders += KontractProcessorProvider()
+            }
+            kspProcessorOptions = mutableMapOf("kontract.serializer" to "kotlinx")
+        }
+        return compilation.compile()
+    }
+
+    @Test
+    fun `should warn when kotlinx response type is an interface`() {
+        val result = compileKotlinxWithResponse(
+            "interface TestResponse",
+            """@VertxEndpoint(method = HttpMethod.GET, path = "/test/:id", response = TestResponse::class)""",
+        )
+
+        assertContains(result.messages, "is an interface")
+        assertContains(result.messages, "kotlinx.serialization requires concrete @Serializable types")
+        assertFalse(result.messages.contains("is abstract"), "interface should not trigger abstract warning")
+    }
+
+    @Test
+    fun `should warn when kotlinx response type is abstract`() {
+        val result = compileKotlinxWithResponse(
+            "abstract class TestResponse",
+            """@VertxEndpoint(method = HttpMethod.GET, path = "/test/:id", response = TestResponse::class)""",
+        )
+
+        assertContains(result.messages, "is abstract")
+        assertContains(result.messages, "kotlinx.serialization requires concrete @Serializable types")
+    }
+
+    @Test
+    fun `should not warn when kotlinx response type is concrete class`() {
+        val result = compileKotlinxWithResponse(
+            "data class TestResponse(val name: String)",
+            """@VertxEndpoint(method = HttpMethod.GET, path = "/test/:id", response = TestResponse::class)""",
+        )
+
+        assertFalse(result.messages.contains("kotlinx.serialization requires concrete @Serializable types"))
+    }
+
+    @Test
+    fun `should not warn when jackson mode with interface response`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            interface TestResponse
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "/test/:id", response = TestResponse::class)
+            data class TestRequest(@PathParam val id: Long)
+        """)
+        val (result, _) = compileWithResult(src)
+
+        assertFalse(result.messages.contains("kotlinx.serialization requires concrete @Serializable types"))
+    }
 }

@@ -9,6 +9,7 @@ import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSValueParameter
+import com.google.devtools.ksp.symbol.Modifier
 import com.google.devtools.ksp.validate
 
 class KontractProcessor(
@@ -43,15 +44,33 @@ class KontractProcessor(
             .first { it.name?.asString() == "path" }
             .value.toString()
 
-        val responseType = annotation.arguments
+        val responseKSType = annotation.arguments
             .firstOrNull { it.name?.asString() == "response" }
             ?.value
             ?.let { it as? com.google.devtools.ksp.symbol.KSType }
-            ?.let { type ->
-                val qualifiedName = type.declaration.qualifiedName?.asString()
-                // KSP2 resolves Nothing::class as java.lang.Void
-                if (qualifiedName in setOf("kotlin.Nothing", "java.lang.Void")) null else qualifiedName
+            ?.takeIf {
+                val qualifiedName = it.declaration.qualifiedName?.asString()
+                qualifiedName !in setOf("kotlin.Nothing", "java.lang.Void")
             }
+
+        val responseType = responseKSType?.declaration?.qualifiedName?.asString()
+
+        if (serializerMode == SerializerMode.KOTLINX && responseKSType != null) {
+            val responseDecl = responseKSType.declaration as? KSClassDeclaration
+            if (responseDecl?.classKind == ClassKind.INTERFACE) {
+                logger.warn(
+                    "Response type '${responseDecl.simpleName.asString()}' is an interface. " +
+                            "kotlinx.serialization requires concrete @Serializable types.",
+                    classDecl,
+                )
+            } else if (responseDecl != null && Modifier.ABSTRACT in responseDecl.modifiers) {
+                logger.warn(
+                    "Response type '${responseDecl.simpleName.asString()}' is abstract. " +
+                            "kotlinx.serialization requires concrete @Serializable types.",
+                    classDecl,
+                )
+            }
+        }
 
         val statusCode = annotation.arguments
             .firstOrNull { it.name?.asString() == "statusCode" }
