@@ -7,7 +7,10 @@ import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.processing.SymbolProcessor
 import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSAnnotated
+import com.google.devtools.ksp.symbol.KSAnnotation
 import com.google.devtools.ksp.symbol.KSClassDeclaration
+import com.google.devtools.ksp.symbol.KSDeclaration
+import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.KSValueParameter
 import com.google.devtools.ksp.symbol.Modifier
 import com.google.devtools.ksp.validate
@@ -37,23 +40,14 @@ class KontractProcessor(
         val annotation = classDecl.annotations
             .first { it.shortName.asString() == "VertxEndpoint" }
 
-        val method = annotation.arguments
-            .first { it.name?.asString() == "method" }
-            .value.toString()
-            .substringAfterLast(".")
-        val path = annotation.arguments
-            .first { it.name?.asString() == "path" }
-            .value.toString()
+        val method = annotation.requireArg("method").toString().substringAfterLast(".")
+        val path = annotation.requireArg("path").toString()
 
-        val responseKSType = annotation.arguments
-            .firstOrNull { it.name?.asString() == "response" }
-            ?.value
-            ?.let { it as? com.google.devtools.ksp.symbol.KSType }
+        val responseKSType = (annotation.optionalArg("response") as? KSType)
             ?.takeIf {
                 val qualifiedName = it.declaration.qualifiedName?.asString()
                 qualifiedName !in setOf("kotlin.Nothing", "java.lang.Void")
             }
-
         val responseType = responseKSType?.declaration?.qualifiedName?.asString()
 
         if (serializerMode == SerializerMode.KOTLINX && responseKSType != null) {
@@ -73,9 +67,7 @@ class KontractProcessor(
             }
         }
 
-        val statusCode = annotation.arguments
-            .firstOrNull { it.name?.asString() == "statusCode" }
-            ?.value as? Int ?: 200
+        val statusCode = annotation.optionalArg("statusCode") as? Int ?: 200
 
         if (statusCode !in 100..599) {
             logger.error(
@@ -166,9 +158,7 @@ class KontractProcessor(
         val annotationName = if (paramAnnotation.shortName.asString() == "BodyParam") {
             ""
         } else {
-            paramAnnotation.arguments
-                .firstOrNull { it.name?.asString() == "name" }
-                ?.value?.toString() ?: ""
+            paramAnnotation.optionalArg("name")?.toString() ?: ""
         }
 
         val resolvedType = param.type.resolve()
@@ -190,74 +180,19 @@ class KontractProcessor(
 
         val defaultValue = param.annotations
             .firstOrNull { it.shortName.asString() == "Default" }
-            ?.arguments
-            ?.firstOrNull { it.name?.asString() == "value" }
-            ?.value?.toString()
+            ?.optionalArg("value")?.toString()
 
         val enumIgnoreCase = param.annotations
             .any { it.shortName.asString() == "EnumIgnoreCase" }
 
         val converterClass = param.annotations
             .firstOrNull { it.shortName.asString() == "TypeConverter" }
-            ?.arguments
-            ?.firstOrNull { it.name?.asString() == "converter" }
-            ?.value
-            ?.let { it as? com.google.devtools.ksp.symbol.KSType }
+            ?.let { (it.optionalArg("converter") as? KSType) }
             ?.declaration?.qualifiedName?.asString()
-
-        if (converterClass != null && source == ParamSource.BODY) {
-            logger.error(
-                "@TypeConverter on @BodyParam '${param.name?.asString()}' is not supported. " +
-                        "Body parameters are deserialized from the request body, not from a string value.",
-                param,
-            )
-        }
-
-        if (converterClass != null && isEnum) {
-            logger.warn(
-                "@TypeConverter on Enum type '${param.name?.asString()}' overrides built-in Enum parsing.",
-                param,
-            )
-        }
-
-        if (converterClass != null && defaultValue != null) {
-            logger.error(
-                "@Default on @TypeConverter parameter '${param.name?.asString()}' is not supported. " +
-                        "Custom type converters cannot have default values.",
-                param,
-            )
-        }
-
-        if (defaultValue != null && source == ParamSource.BODY) {
-            logger.warn(
-                "@Default on @BodyParam '${param.name?.asString()}' is ignored. " +
-                        "Body parameters are deserialized from the request body and cannot have a default value.",
-                param,
-            )
-        }
-
-        if (defaultValue != null && source == ParamSource.PATH) {
-            logger.warn(
-                "@Default on @PathParam '${param.name?.asString()}' is discouraged. " +
-                        "Path parameters are part of the URL and should always be present. " +
-                        "A default value may hide routing errors.",
-                param,
-            )
-        }
-
-        if (enumIgnoreCase && !isEnum) {
-            logger.error(
-                "@EnumIgnoreCase on '${param.name?.asString()}' is only valid for Enum types, " +
-                        "but the type is '$typeName'.",
-                param,
-            )
-        }
-
-        validateDefaultValue(param, typeName, defaultValue, isEnum, typeDecl)
 
         val validations = extractValidations(param)
 
-        return ParamInfo(
+        val paramInfo = ParamInfo(
             name = param.name!!.asString(),
             typeName = typeName,
             qualifiedTypeName = qualifiedTypeName,
@@ -270,12 +205,71 @@ class KontractProcessor(
             validations = validations,
             converterClass = converterClass,
         )
+
+        validateParamAnnotations(param, paramInfo, typeDecl)
+        return paramInfo
+    }
+
+    private fun validateParamAnnotations(
+        param: KSValueParameter,
+        info: ParamInfo,
+        typeDecl: KSDeclaration,
+    ) {
+        val paramName = param.name?.asString()
+
+        if (info.converterClass != null && info.source == ParamSource.BODY) {
+            logger.error(
+                "@TypeConverter on @BodyParam '$paramName' is not supported. " +
+                        "Body parameters are deserialized from the request body, not from a string value.",
+                param,
+            )
+        }
+
+        if (info.converterClass != null && info.isEnum) {
+            logger.warn(
+                "@TypeConverter on Enum type '$paramName' overrides built-in Enum parsing.",
+                param,
+            )
+        }
+
+        if (info.converterClass != null && info.defaultValue != null) {
+            logger.error(
+                "@Default on @TypeConverter parameter '$paramName' is not supported. " +
+                        "Custom type converters cannot have default values.",
+                param,
+            )
+        }
+
+        if (info.defaultValue != null && info.source == ParamSource.BODY) {
+            logger.warn(
+                "@Default on @BodyParam '$paramName' is ignored. " +
+                        "Body parameters are deserialized from the request body and cannot have a default value.",
+                param,
+            )
+        }
+
+        if (info.defaultValue != null && info.source == ParamSource.PATH) {
+            logger.warn(
+                "@Default on @PathParam '$paramName' is discouraged. " +
+                        "Path parameters are part of the URL and should always be present. " +
+                        "A default value may hide routing errors.",
+                param,
+            )
+        }
+
+        if (info.enumIgnoreCase && !info.isEnum) {
+            logger.error(
+                "@EnumIgnoreCase on '$paramName' is only valid for Enum types, " +
+                        "but the type is '${info.typeName}'.",
+                param,
+            )
+        }
+
+        validateDefaultValue(param, info.typeName, info.defaultValue, info.isEnum, typeDecl)
     }
 
     private fun extractValidations(param: KSValueParameter): List<ValidationInfo> {
-        val resolvedType = param.type.resolve()
-        val typeName = resolvedType.declaration.simpleName.asString()
-        val baseTypeName = if (resolvedType.isMarkedNullable) typeName else typeName
+        val typeName = param.type.resolve().declaration.simpleName.asString()
         val numericTypes = setOf("Int", "Long")
         val stringTypes = setOf("String")
         val paramName = param.name?.asString() ?: "unknown"
@@ -284,39 +278,37 @@ class KontractProcessor(
         for (annotation in param.annotations) {
             when (annotation.shortName.asString()) {
                 "Min" -> {
-                    if (baseTypeName !in numericTypes) {
+                    if (typeName !in numericTypes) {
                         logger.error("@Min is only valid for Int or Long types, but '$paramName' is $typeName.", param)
                     }
-                    val value = annotation.arguments.first { it.name?.asString() == "value" }.value as Long
-                    validations.add(ValidationInfo.Min(value))
+                    validations.add(ValidationInfo.Min(annotation.requireArg("value") as Long))
                 }
                 "Max" -> {
-                    if (baseTypeName !in numericTypes) {
+                    if (typeName !in numericTypes) {
                         logger.error("@Max is only valid for Int or Long types, but '$paramName' is $typeName.", param)
                     }
-                    val value = annotation.arguments.first { it.name?.asString() == "value" }.value as Long
-                    validations.add(ValidationInfo.Max(value))
+                    validations.add(ValidationInfo.Max(annotation.requireArg("value") as Long))
                 }
                 "NotBlank" -> {
-                    if (baseTypeName !in stringTypes) {
+                    if (typeName !in stringTypes) {
                         logger.error("@NotBlank is only valid for String types, but '$paramName' is $typeName.", param)
                     }
                     validations.add(ValidationInfo.NotBlank)
                 }
                 "Size" -> {
-                    if (baseTypeName !in numericTypes + stringTypes) {
+                    if (typeName !in numericTypes + stringTypes) {
                         logger.error("@Size is only valid for Int, Long, or String types, but '$paramName' is $typeName.", param)
                     }
-                    val min = annotation.arguments.first { it.name?.asString() == "min" }.value as Int
-                    val max = annotation.arguments.first { it.name?.asString() == "max" }.value as Int
-                    validations.add(ValidationInfo.Size(min, max))
+                    validations.add(ValidationInfo.Size(
+                        min = annotation.requireArg("min") as Int,
+                        max = annotation.requireArg("max") as Int,
+                    ))
                 }
                 "Pattern" -> {
-                    if (baseTypeName !in stringTypes) {
+                    if (typeName !in stringTypes) {
                         logger.error("@Pattern is only valid for String types, but '$paramName' is $typeName.", param)
                     }
-                    val regex = annotation.arguments.first { it.name?.asString() == "regex" }.value as String
-                    validations.add(ValidationInfo.Pattern(regex))
+                    validations.add(ValidationInfo.Pattern(annotation.requireArg("regex") as String))
                 }
             }
         }
@@ -328,7 +320,7 @@ class KontractProcessor(
         typeName: String,
         defaultValue: String?,
         isEnum: Boolean,
-        typeDecl: com.google.devtools.ksp.symbol.KSDeclaration,
+        typeDecl: KSDeclaration,
     ) {
         if (defaultValue == null) return
 
@@ -356,7 +348,7 @@ class KontractProcessor(
                 val enumValue = defaultValue.substringAfterLast(".")
                 if (enumValue !in entries) {
                     logger.error(
-                        "@Default value '$defaultValue' is not a valid ${typeName} entry for '${param.name?.asString()}'. " +
+                        "@Default value '$defaultValue' is not a valid $typeName entry for '${param.name?.asString()}'. " +
                                 "Allowed: ${entries.joinToString()}",
                         param,
                     )
@@ -368,5 +360,11 @@ class KontractProcessor(
     companion object {
         private const val VERTX_ENDPOINT_ANNOTATION = "io.github.chloeeekim.kontract.annotation.VertxEndpoint"
         private val PARAM_ANNOTATIONS = setOf("PathParam", "QueryParam", "HeaderParam", "CookieParam", "BodyParam")
+
+        private fun KSAnnotation.requireArg(name: String): Any =
+            arguments.first { it.name?.asString() == name }.value!!
+
+        private fun KSAnnotation.optionalArg(name: String): Any? =
+            arguments.firstOrNull { it.name?.asString() == name }?.value
     }
 }
