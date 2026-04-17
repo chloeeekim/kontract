@@ -14,21 +14,10 @@ object KontractCodeGenerator {
     ): String {
         val contractName = "${className}Contract"
         val responseSimpleName = responseType?.substringAfterLast(".")
+        val imports = collectCompanionImports(responseType, packageName, coroutines)
 
         return buildString {
-            if (packageName.isNotEmpty()) {
-                appendLine("package $packageName")
-                appendLine()
-            }
-            appendLine("import io.vertx.ext.web.Router")
-            appendLine("import io.vertx.ext.web.RoutingContext")
-            if (coroutines) {
-                appendLine("import kotlinx.coroutines.CoroutineScope")
-            }
-            if (responseType != null && responseType.substringBeforeLast(".") != packageName) {
-                appendLine("import $responseType")
-            }
-            appendLine()
+            appendLine(generatePackageAndImports(packageName, imports))
             appendLine("fun $className.$companionName.from(ctx: RoutingContext) =")
             appendLine("    $contractName.from(ctx)")
             appendLine()
@@ -193,6 +182,24 @@ object KontractCodeGenerator {
         return imports
     }
 
+    private fun collectCompanionImports(
+        responseType: String?,
+        packageName: String,
+        coroutines: Boolean,
+    ): Set<String> {
+        val imports = mutableSetOf(
+            "io.vertx.ext.web.Router",
+            "io.vertx.ext.web.RoutingContext",
+        )
+        if (coroutines) {
+            imports.add("kotlinx.coroutines.CoroutineScope")
+        }
+        if (responseType != null) {
+            imports.addIfDifferentPackage(responseType, packageName)
+        }
+        return imports
+    }
+
     private fun MutableSet<String>.addIfDifferentPackage(qualifiedName: String, packageName: String) {
         if (qualifiedName.substringBeforeLast(".") != packageName) {
             add(qualifiedName)
@@ -225,42 +232,46 @@ object KontractCodeGenerator {
 
     internal val NO_BODY_STATUS_CODES = setOf(204, 205, 304)
 
-    // isSuspend=true: coRoute (coroutine based asynchronous handler)
-    // isSuspend=false: route (synchronous handler)
+    private fun generateHandlerBlock(handlerBody: String, isSuspend: Boolean): String {
+        val bodyIndent = if (isSuspend) "                    " else "                "
+        val catchIndent = if (isSuspend) "                " else "            "
+        val indentedBody = handlerBody.prependIndent(bodyIndent)
+
+        return buildString {
+            if (isSuspend) {
+                appendLine("            scope.launch {")
+                appendLine("                try {")
+            } else {
+                appendLine("            try {")
+            }
+            appendLine(indentedBody)
+            appendLine("$catchIndent} catch (e: BadRequestException) {")
+            appendLine("${catchIndent}    KontractConfig.errorHandler.handleError(ctx, e)")
+            if (isSuspend) {
+                appendLine("$catchIndent} catch (e: Exception) {")
+                appendLine("${catchIndent}    ctx.fail(e)")
+                appendLine("$catchIndent}")
+                append("            }")
+            } else {
+                append("$catchIndent}")
+            }
+        }
+    }
+
     private fun generateRouteMethodInternal(className: String, httpMethod: String, path: String, isSuspend: Boolean): String {
         val routerMethod = httpMethod.lowercase()
         val methodName = if (isSuspend) "coRoute" else "route"
         val suspendKeyword = if (isSuspend) "suspend " else ""
         val scopeParam = if (isSuspend) "scope: CoroutineScope, " else ""
-        val catchAll = if (isSuspend) """
-                } catch (e: Exception) {
-                    ctx.fail(e)""" else ""
 
-        return if (isSuspend) {
-            """    fun $methodName(${scopeParam}router: Router, handler: ${suspendKeyword}($className, RoutingContext) -> Unit) {
+        val handlerBody = "val request = from(ctx)\nhandler(request, ctx)"
+        val handlerBlock = generateHandlerBlock(handlerBody, isSuspend)
+
+        return """    fun $methodName(${scopeParam}router: Router, handler: ${suspendKeyword}($className, RoutingContext) -> Unit) {
         router.$routerMethod("$path").handler { ctx ->
-            scope.launch {
-                try {
-                    val request = from(ctx)
-                    handler(request, ctx)
-                } catch (e: BadRequestException) {
-                    KontractConfig.errorHandler.handleError(ctx, e)$catchAll
-                }
-            }
+$handlerBlock
         }
     }"""
-        } else {
-            """    fun $methodName(${scopeParam}router: Router, handler: ${suspendKeyword}($className, RoutingContext) -> Unit) {
-        router.$routerMethod("$path").handler { ctx ->
-            try {
-                val request = from(ctx)
-                handler(request, ctx)
-            } catch (e: BadRequestException) {
-                KontractConfig.errorHandler.handleError(ctx, e)
-            }
-        }
-    }"""
-        }
     }
 
     private fun generateTypedRouteMethodInternal(
@@ -276,50 +287,24 @@ object KontractCodeGenerator {
         val methodName = if (isSuspend) "coRouteWithResponse" else "routeWithResponse"
         val suspendKeyword = if (isSuspend) "suspend " else ""
         val scopeParam = if (isSuspend) "scope: CoroutineScope, " else ""
-        val catchAll = if (isSuspend) """
-                } catch (e: Exception) {
-                    ctx.fail(e)""" else ""
 
         val handlerBody = if (statusCode in NO_BODY_STATUS_CODES) {
-            """val request = from(ctx)
-                    handler(request, ctx)
-                    ctx.response().setStatusCode($statusCode).end()"""
+            "val request = from(ctx)\nhandler(request, ctx)\nctx.response().setStatusCode($statusCode).end()"
         } else {
             val serializeExpr = when (serializerMode) {
                 SerializerMode.JACKSON -> "objectMapper.writeValueAsString(response)"
                 SerializerMode.KOTLINX -> "Json.encodeToString(response)"
             }
-            """val request = from(ctx)
-                    val response = handler(request, ctx)
-                    ctx.response()
-                        .setStatusCode($statusCode)
-                        .putHeader("Content-Type", "application/json")
-                        .end($serializeExpr)"""
+            "val request = from(ctx)\nval response = handler(request, ctx)\nctx.response()\n    .setStatusCode($statusCode)\n    .putHeader(\"Content-Type\", \"application/json\")\n    .end($serializeExpr)"
         }
 
-        return if (isSuspend) {
-            """    fun $methodName(${scopeParam}router: Router, handler: ${suspendKeyword}($className, RoutingContext) -> $responseSimpleName) {
+        val handlerBlock = generateHandlerBlock(handlerBody, isSuspend)
+
+        return """    fun $methodName(${scopeParam}router: Router, handler: ${suspendKeyword}($className, RoutingContext) -> $responseSimpleName) {
         router.$routerMethod("$path").handler { ctx ->
-            scope.launch {
-                try {
-                    $handlerBody
-                } catch (e: BadRequestException) {
-                    KontractConfig.errorHandler.handleError(ctx, e)$catchAll
-                }
-            }
+$handlerBlock
         }
     }"""
-        } else {
-            """    fun $methodName(${scopeParam}router: Router, handler: ${suspendKeyword}($className, RoutingContext) -> $responseSimpleName) {
-        router.$routerMethod("$path").handler { ctx ->
-            try {
-                $handlerBody
-            } catch (e: BadRequestException) {
-                KontractConfig.errorHandler.handleError(ctx, e)
-            }
-        }
-    }"""
-        }
     }
 
     private fun generateParamExtraction(param: ParamInfo, serializerMode: SerializerMode): String {
