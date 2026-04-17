@@ -169,6 +169,117 @@ class KontractProcessorTest {
         assertContains(result.messages, "@Default value 'yes' is not a valid Boolean")
     }
 
+    // --- List query param tests ---
+
+    @Test
+    fun `should generate List String query param`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "/test")
+            data class TestRequest(
+                @QueryParam val tags: List<String>,
+            )
+        """)
+
+        val compilation = KotlinCompilation().apply {
+            sources = listOf(src)
+            inheritClassPath = true
+            configureKsp(useKsp2 = true) {
+                symbolProcessorProviders += KontractProcessorProvider()
+            }
+        }
+        compilation.compile()
+        val generated = findGeneratedSource(compilation, "TestRequestContract.kt")
+
+        assertContains(generated, """ctx.queryParam("tags")""")
+        assertContains(generated, "Missing query param: tags")
+    }
+
+    @Test
+    fun `should generate List Long query param`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "/test")
+            data class TestRequest(
+                @QueryParam val ids: List<Long>,
+            )
+        """)
+
+        val compilation = KotlinCompilation().apply {
+            sources = listOf(src)
+            inheritClassPath = true
+            configureKsp(useKsp2 = true) {
+                symbolProcessorProviders += KontractProcessorProvider()
+            }
+        }
+        compilation.compile()
+        val generated = findGeneratedSource(compilation, "TestRequestContract.kt")
+
+        assertContains(generated, "toLongOrNull()")
+    }
+
+    @Test
+    fun `should error when List used on PathParam`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "/test/:ids")
+            data class TestRequest(
+                @PathParam val ids: List<Long>,
+            )
+        """)
+
+        val (result, _) = compileWithResult(src)
+
+        assertContains(result.messages, "List type on 'ids' is only supported for @QueryParam")
+    }
+
+    @Test
+    fun `should error when Validation used on List param`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "/test")
+            data class TestRequest(
+                @QueryParam @Min(1) val ids: List<Long>,
+            )
+        """)
+
+        val (result, _) = compileWithResult(src)
+
+        assertContains(result.messages, "Validation annotations on List parameter 'ids' are not supported")
+    }
+
+    @Test
+    fun `should error when EnumIgnoreCase used on List Enum param`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            enum class Status { ACTIVE, INACTIVE }
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "/test")
+            data class TestRequest(
+                @QueryParam @EnumIgnoreCase val statuses: List<Status>,
+            )
+        """)
+
+        val (result, _) = compileWithResult(src)
+
+        assertContains(result.messages, "@EnumIgnoreCase on List parameter 'statuses' is not supported")
+    }
+
     // --- Enum tests ---
 
     @Test

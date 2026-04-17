@@ -167,7 +167,13 @@ class KontractProcessor(
         val qualifiedTypeName = typeDecl.qualifiedName?.asString() ?: typeName
         val nullable = resolvedType.isMarkedNullable
 
-        val isEnum = typeDecl is KSClassDeclaration && typeDecl.classKind == ClassKind.ENUM_CLASS
+        val isList = qualifiedTypeName == "kotlin.collections.List"
+        val elementType = if (isList) resolvedType.arguments.firstOrNull()?.type?.resolve() else null
+        val elementTypeDecl = elementType?.declaration
+        val elementTypeName = elementTypeDecl?.simpleName?.asString()
+        val elementQualifiedTypeName = elementTypeDecl?.qualifiedName?.asString() ?: elementTypeName
+        val isElementEnum = elementTypeDecl is KSClassDeclaration && elementTypeDecl.classKind == ClassKind.ENUM_CLASS
+        val isEnum = !isList && typeDecl is KSClassDeclaration && typeDecl.classKind == ClassKind.ENUM_CLASS
 
         val source = when (paramAnnotation.shortName.asString()) {
             "PathParam" -> ParamSource.PATH
@@ -204,6 +210,10 @@ class KontractProcessor(
             enumIgnoreCase = enumIgnoreCase,
             validations = validations,
             converterClass = converterClass,
+            isList = isList,
+            elementTypeName = elementTypeName,
+            elementQualifiedTypeName = elementQualifiedTypeName,
+            isElementEnum = isElementEnum,
         )
 
         validateParamAnnotations(param, paramInfo, typeDecl)
@@ -261,6 +271,41 @@ class KontractProcessor(
             logger.error(
                 "@EnumIgnoreCase on '$paramName' is only valid for Enum types, " +
                         "but the type is '${info.typeName}'.",
+                param,
+            )
+        }
+
+        if (info.isList && info.source != ParamSource.QUERY) {
+            logger.error(
+                "List type on '$paramName' is only supported for @QueryParam.",
+                param,
+            )
+        }
+
+        if (info.isList && info.defaultValue != null) {
+            logger.error(
+                "@Default on List parameter '$paramName' is not supported.",
+                param,
+            )
+        }
+
+        if (info.isList && info.converterClass != null) {
+            logger.error(
+                "@TypeConverter on List parameter '$paramName' is not supported.",
+                param,
+            )
+        }
+
+        if (info.isList && info.validations.isNotEmpty()) {
+            logger.error(
+                "Validation annotations on List parameter '$paramName' are not supported.",
+                param,
+            )
+        }
+
+        if (info.isList && info.enumIgnoreCase) {
+            logger.error(
+                "@EnumIgnoreCase on List parameter '$paramName' is not supported.",
                 param,
             )
         }

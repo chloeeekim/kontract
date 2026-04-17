@@ -164,6 +164,9 @@ object KontractCodeGenerator {
             if (param.isEnum) {
                 imports.addIfDifferentPackage(param.qualifiedTypeName, packageName)
             }
+            if (param.isList && param.isElementEnum && param.elementQualifiedTypeName != null) {
+                imports.addIfDifferentPackage(param.elementQualifiedTypeName, packageName)
+            }
             if (param.converterClass != null) {
                 imports.addIfDifferentPackage(param.converterClass, packageName)
                 imports.addIfDifferentPackage(param.qualifiedTypeName, packageName)
@@ -368,8 +371,40 @@ object KontractCodeGenerator {
     // --- Query Param ---
 
     private fun generateQueryParamParsing(param: ParamInfo, paramName: String): String {
+        if (param.isList) {
+            return generateListQueryParamParsing(param, paramName)
+        }
         val extractor = """ctx.request().getParam("$paramName")"""
         return generateTypedParsing(param, paramName, extractor, "query")
+    }
+
+    private fun generateListQueryParamParsing(param: ParamInfo, paramName: String): String {
+        val elementType = param.elementTypeName ?: "String"
+        val elementQualified = param.elementQualifiedTypeName ?: elementType
+
+        val mapExpr = when {
+            param.isElementEnum -> """try { $elementQualified.valueOf(it) } catch (e: IllegalArgumentException) { throw BadRequestException("Invalid value for query param '$paramName': '${'$'}it'. Allowed: ${'$'}{$elementQualified.entries.joinToString()}") }"""
+            elementType == "Int" -> "it.toIntOrNull() ?: throw BadRequestException(\"Invalid value for query param '$paramName': '\$it'\")"
+            elementType == "Long" -> "it.toLongOrNull() ?: throw BadRequestException(\"Invalid value for query param '$paramName': '\$it'\")"
+            elementType == "Boolean" -> "it.toBooleanStrictOrNull() ?: throw BadRequestException(\"Invalid value for query param '$paramName': '\$it'. Allowed: true, false\")"
+            else -> "it" // String
+        }
+
+        val listExpr = if (elementType == "String") {
+            """ctx.queryParam("$paramName")"""
+        } else {
+            """ctx.queryParam("$paramName").map { $mapExpr }"""
+        }
+
+        return if (param.nullable) {
+            """val ${param.name} = ctx.queryParam("$paramName").ifEmpty { null }${if (elementType == "String") "" else "?.map { $mapExpr }"}"""
+        } else {
+            """val rawList = ctx.queryParam("$paramName")
+if (rawList.isEmpty()) {
+    throw BadRequestException("Missing query param: $paramName")
+}
+val ${param.name} = ${if (elementType == "String") "rawList" else "rawList.map { $mapExpr }"}"""
+        }
     }
 
     // --- Header Param ---

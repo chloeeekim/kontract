@@ -20,6 +20,10 @@ class KontractCodeGeneratorTest {
         qualifiedTypeName: String = typeName,
         validations: List<ValidationInfo> = emptyList(),
         converterClass: String? = null,
+        isList: Boolean = false,
+        elementTypeName: String? = null,
+        elementQualifiedTypeName: String? = null,
+        isElementEnum: Boolean = false,
     ) = ParamInfo(
         name = name,
         typeName = typeName,
@@ -32,6 +36,10 @@ class KontractCodeGeneratorTest {
         enumIgnoreCase = enumIgnoreCase,
         validations = validations,
         converterClass = converterClass,
+        isList = isList,
+        elementTypeName = elementTypeName,
+        elementQualifiedTypeName = elementQualifiedTypeName,
+        isElementEnum = isElementEnum,
     )
 
     private fun generate(params: List<ParamInfo>, className: String = "TestRequest", path: String = "/test") =
@@ -205,6 +213,50 @@ class KontractCodeGeneratorTest {
 
         assertContains(code, "toBooleanStrictOrNull()")
         assertContains(code, "?: false")
+    }
+
+    // --- List query param ---
+
+    @Test
+    fun `should generate List String query param`() {
+        val code = generate(
+            listOf(param("tags", "List", ParamSource.QUERY, isList = true, elementTypeName = "String")),
+        )
+
+        assertContains(code, """ctx.queryParam("tags")""")
+        assertContains(code, "Missing query param: tags")
+    }
+
+    @Test
+    fun `should generate List Long query param with map`() {
+        val code = generate(
+            listOf(param("ids", "List", ParamSource.QUERY, isList = true, elementTypeName = "Long")),
+        )
+
+        assertContains(code, """ctx.queryParam("ids")""")
+        assertContains(code, "toLongOrNull()")
+        assertContains(code, "Missing query param: ids")
+    }
+
+    @Test
+    fun `should generate nullable List query param`() {
+        val code = generate(
+            listOf(param("tags", "List", ParamSource.QUERY, nullable = true, isList = true, elementTypeName = "String")),
+        )
+
+        assertContains(code, "ifEmpty { null }")
+        assertFalse(code.contains("Missing query param"))
+    }
+
+    @Test
+    fun `should generate List Enum query param with error handling`() {
+        val code = generate(
+            listOf(param("types", "List", ParamSource.QUERY, isList = true, elementTypeName = "DeviceType", elementQualifiedTypeName = "com.other.DeviceType", isElementEnum = true)),
+        )
+
+        assertContains(code, "com.other.DeviceType.valueOf(it)")
+        assertContains(code, "catch (e: IllegalArgumentException)")
+        assertContains(code, "import com.other.DeviceType")
     }
 
     // --- Default values ---
