@@ -64,13 +64,13 @@ fun main() {
 
     // When the coroutines option is enabled, coRoute() / coRouteWithResponse() can be used.
     //
-    // In CoroutineVerticle:
+    // In a CoroutineVerticle — scope is tied to Verticle lifecycle:
     // GetItemRequest.coRouteWithResponse(this, router) { req, _ ->
     //     val item = itemService.getAsync(req.id)  // suspend
     //     ItemResponse(id = item.id, name = item.name, price = item.price)
     // }
     //
-    // In a separate scope:
+    // Standalone:
     // val scope = CoroutineScope(vertx.dispatcher())
     // GetItemRequest.coRoute(scope, router) { req, ctx ->
     //     val item = itemService.getAsync(req.id)
