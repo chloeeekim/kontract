@@ -1229,4 +1229,64 @@ class KontractProcessorTest {
         assertFalse(generated.contains("coRoute"))
         assertFalse(generated.contains("CoroutineScope"))
     }
+
+    // --- @Required custom error message ---
+
+    @Test
+    fun `should use custom required message from @Required annotation`() {
+        val generated = compileAndFindSource(
+            source("UserRequest", """@PathParam @Required("User ID is required") val userId: Long,""", path = "/users/:userId"),
+            "UserRequestContract.kt",
+        )
+
+        assertContains(generated, """throw BadRequestException("User ID is required")""")
+        assertFalse(generated.contains("Missing path param: userId"))
+    }
+
+    @Test
+    fun `should warn when @Required is used on nullable param`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "/test")
+            data class TestRequest(@QueryParam @Required("keyword is required") val keyword: String?)
+        """)
+        val (result, _) = compileWithResult(src)
+
+        assertContains(result.messages, "@Required on nullable parameter 'keyword' is ignored")
+    }
+
+    @Test
+    fun `should warn when @Required is used with @Default`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "/test")
+            data class TestRequest(@QueryParam @Required("limit is required") @Default("10") val limit: Int)
+        """)
+        val (result, _) = compileWithResult(src)
+
+        assertContains(result.messages, "@Required on 'limit' with @Default is ignored")
+    }
+
+    @Test
+    fun `should warn when @Required is used on @BodyParam`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            data class Payload(val data: String)
+
+            @VertxEndpoint(method = HttpMethod.POST, path = "/test")
+            data class TestRequest(@BodyParam @Required("Body is required") val body: Payload)
+        """)
+        val (result, _) = compileWithResult(src)
+
+        assertContains(result.messages, "@Required on @BodyParam 'body' is ignored")
+    }
 }

@@ -330,6 +330,9 @@ $handlerBlock
     }
 
     private fun generateMissingFallback(param: ParamInfo, paramName: String, paramKind: String): String {
+        val errorMessage = param.requiredMessage?.let { escapeStringLiteral(it) }
+            ?: "Missing $paramKind param: $paramName"
+
         return when {
             param.defaultValue != null && param.typeName == "String" ->
                 """?: "${escapeStringLiteral(param.defaultValue)}""""
@@ -337,7 +340,7 @@ $handlerBlock
                 "?: ${resolveEnumDefault(param)}"
             param.defaultValue != null -> "?: ${param.defaultValue}"
             param.nullable -> ""
-            else -> """?: throw BadRequestException("Missing $paramKind param: $paramName")"""
+            else -> """?: throw BadRequestException("$errorMessage")"""
         }
     }
 
@@ -381,12 +384,16 @@ $handlerBlock
             """ctx.queryParam("$paramName").map { $mapExpr }"""
         }
 
+        val listErrorMessage = param.requiredMessage?.let { escapeStringLiteral(it) }
+            ?: "Missing query param: $paramName"
+
+
         return if (param.nullable) {
             """val ${param.name} = ctx.queryParam("$paramName").ifEmpty { null }${if (elementType == "String") "" else "?.map { $mapExpr }"}"""
         } else {
             """val rawList = ctx.queryParam("$paramName")
 if (rawList.isEmpty()) {
-    throw BadRequestException("Missing query param: $paramName")
+    throw BadRequestException("$listErrorMessage")
 }
 val ${param.name} = ${if (elementType == "String") "rawList" else "rawList.map { $mapExpr }"}"""
         }

@@ -12,6 +12,7 @@ data class ParamInfo(
     val enumIgnoreCase: Boolean = false,
     val validations: List<ValidationInfo> = emptyList(),
     val converterClass: String? = null,
+    val requiredMessage: String? = null,
     val isList: Boolean = false,
     val elementTypeName: String? = null,
     val elementQualifiedTypeName: String? = null,

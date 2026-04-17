@@ -196,6 +196,10 @@ class KontractProcessor(
             ?.let { (it.optionalArg("converter") as? KSType) }
             ?.declaration?.qualifiedName?.asString()
 
+        val requiredMessage = param.annotations
+            .firstOrNull { it.shortName.asString() == "Required" }
+            ?.optionalArg("message")?.toString()
+
         val validations = extractValidations(param)
 
         val paramInfo = ParamInfo(
@@ -210,6 +214,7 @@ class KontractProcessor(
             enumIgnoreCase = enumIgnoreCase,
             validations = validations,
             converterClass = converterClass,
+            requiredMessage = requiredMessage,
             isList = isList,
             elementTypeName = elementTypeName,
             elementQualifiedTypeName = elementQualifiedTypeName,
@@ -306,6 +311,30 @@ class KontractProcessor(
         if (info.isList && info.enumIgnoreCase) {
             logger.error(
                 "@EnumIgnoreCase on List parameter '$paramName' is not supported.",
+                param,
+            )
+        }
+
+        if (info.requiredMessage != null && info.nullable) {
+            logger.warn(
+                "@Required on nullable parameter '$paramName' is ignored. " +
+                        "Nullable parameters are optional by definition.",
+                param,
+            )
+        }
+
+        if (info.requiredMessage != null && info.defaultValue != null) {
+            logger.warn(
+                "@Required on '$paramName' with @Default is ignored. " +
+                        "The default value will be used when the parameter is missing.",
+                param,
+            )
+        }
+
+        if (info.requiredMessage != null && info.source == ParamSource.BODY) {
+            logger.warn(
+                "@Required on @BodyParam '$paramName' is ignored. " +
+                        "Body parameters use deserialization error messages.",
                 param,
             )
         }

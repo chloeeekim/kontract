@@ -20,6 +20,7 @@ class KontractCodeGeneratorTest {
         qualifiedTypeName: String = typeName,
         validations: List<ValidationInfo> = emptyList(),
         converterClass: String? = null,
+        requiredMessage: String? = null,
         isList: Boolean = false,
         elementTypeName: String? = null,
         elementQualifiedTypeName: String? = null,
@@ -36,6 +37,7 @@ class KontractCodeGeneratorTest {
         enumIgnoreCase = enumIgnoreCase,
         validations = validations,
         converterClass = converterClass,
+        requiredMessage = requiredMessage,
         isList = isList,
         elementTypeName = elementTypeName,
         elementQualifiedTypeName = elementQualifiedTypeName,
@@ -1252,5 +1254,72 @@ class KontractCodeGeneratorTest {
         val count = Regex("private val localDateConverter = LocalDateConverter\\(\\)")
             .findAll(code).count()
         assertEquals(1, count, "Only one should be generated for the same converter class.")
+    }
+
+    // --- @Required custom error message ---
+
+    @Test
+    fun `should use custom required message for non-null path param`() {
+        val code = generate(
+            listOf(param("userId", "Long", ParamSource.PATH, requiredMessage = "User ID is required")),
+            path = "/users/:userId",
+        )
+
+        assertContains(code, """throw BadRequestException("User ID is required")""")
+        assertFalse(code.contains("Missing path param: userId"))
+    }
+
+    @Test
+    fun `should use custom required message for non-null query param`() {
+        val code = generate(
+            listOf(param("keyword", "String", ParamSource.QUERY, requiredMessage = "Please enter a search query.")),
+        )
+
+        assertContains(code, """throw BadRequestException("Please enter a search query.")""")
+        assertFalse(code.contains("Missing query param: keyword"))
+    }
+
+    @Test
+    fun `should use default message when @Required is not present`() {
+        val code = generate(
+            listOf(param("id", "Long", ParamSource.PATH)),
+            path = "/items/:id",
+        )
+
+        assertContains(code, """throw BadRequestException("Missing path param: id")""")
+    }
+
+    @Test
+    fun `should use custom required message for non-null header param`() {
+        val code = generate(
+            listOf(param("token", "String", ParamSource.HEADER, requiredMessage = "Authorization token is required")),
+        )
+
+        assertContains(code, """throw BadRequestException("Authorization token is required")""")
+    }
+
+    @Test
+    fun `should use custom required message for non-null List query param`() {
+        val code = generate(
+            listOf(
+                param(
+                    "ids", "List", ParamSource.QUERY,
+                    isList = true, elementTypeName = "Long", elementQualifiedTypeName = "kotlin.Long",
+                    requiredMessage = "At least one ID is required",
+                ),
+            ),
+        )
+
+        assertContains(code, """throw BadRequestException("At least one ID is required")""")
+        assertFalse(code.contains("Missing query param: ids"))
+    }
+
+    @Test
+    fun `should escape special characters in custom required message`() {
+        val code = generate(
+            listOf(param("name", "String", ParamSource.QUERY, requiredMessage = """Value for "name" is required""")),
+        )
+
+        assertContains(code, """throw BadRequestException("Value for \"name\" is required")""")
     }
 }
