@@ -338,6 +338,8 @@ $handlerBlock
                 """?: "${escapeStringLiteral(param.defaultValue)}""""
             param.defaultValue != null && param.isEnum ->
                 "?: ${resolveEnumDefault(param)}"
+            param.defaultValue != null && param.typeName == "Float" ->
+                "?: ${param.defaultValue}f"
             param.defaultValue != null -> "?: ${param.defaultValue}"
             param.nullable -> ""
             else -> """?: throw BadRequestException("$errorMessage")"""
@@ -374,6 +376,8 @@ $handlerBlock
             param.isElementEnum -> """try { $elementQualified.valueOf(it) } catch (e: IllegalArgumentException) { throw BadRequestException("Invalid value for query param '$paramName': '${'$'}it'. Allowed: ${'$'}{$elementQualified.entries.joinToString()}") }"""
             elementType == "Int" -> "it.toIntOrNull() ?: throw BadRequestException(\"Invalid value for query param '$paramName': '\$it'\")"
             elementType == "Long" -> "it.toLongOrNull() ?: throw BadRequestException(\"Invalid value for query param '$paramName': '\$it'\")"
+            elementType == "Double" -> "it.toDoubleOrNull() ?: throw BadRequestException(\"Invalid value for query param '$paramName': '\$it'\")"
+            elementType == "Float" -> "it.toFloatOrNull() ?: throw BadRequestException(\"Invalid value for query param '$paramName': '\$it'\")"
             elementType == "Boolean" -> "it.toBooleanStrictOrNull() ?: throw BadRequestException(\"Invalid value for query param '$paramName': '\$it'. Allowed: true, false\")"
             else -> "it" // String
         }
@@ -425,7 +429,7 @@ val ${param.name} = ${if (elementType == "String") "rawList" else "rawList.map {
         }
 
         return when (param.typeName) {
-            "Long", "Int" -> generateNumericParsing(param, paramName, extractor, paramKind)
+            "Long", "Int", "Double", "Float" -> generateNumericParsing(param, paramName, extractor, paramKind)
             "Boolean" -> generateBooleanParsing(param, paramName, extractor, paramKind)
             "String" -> generateStringParsing(param, paramName, extractor, paramKind)
             else -> error("Unsupported $paramKind param type: ${param.typeName}")
@@ -452,10 +456,15 @@ val ${param.name} = ${if (elementType == "String") "rawList" else "rawList.map {
 }"""
     }
 
-    // --- Numeric (Int/Long) with ?.let pattern ---
+    // --- Numeric (Int/Long/Double/Float) with ?.let pattern ---
 
     private fun generateNumericParsing(param: ParamInfo, paramName: String, extractor: String, paramKind: String): String {
-        val converter = if (param.typeName == "Long") "toLongOrNull" else "toIntOrNull"
+        val converter = when (param.typeName) {
+            "Long" -> "toLongOrNull"
+            "Double" -> "toDoubleOrNull"
+            "Float" -> "toFloatOrNull"
+            else -> "toIntOrNull"
+        }
         val fallback = generateMissingFallback(param, paramName, paramKind)
 
         return if (fallback.isEmpty()) {

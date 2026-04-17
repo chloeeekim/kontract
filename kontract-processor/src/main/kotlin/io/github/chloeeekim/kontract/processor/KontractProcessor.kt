@@ -344,7 +344,7 @@ class KontractProcessor(
 
     private fun extractValidations(param: KSValueParameter): List<ValidationInfo> {
         val typeName = param.type.resolve().declaration.simpleName.asString()
-        val numericTypes = setOf("Int", "Long")
+        val numericTypes = setOf("Int", "Long", "Double", "Float")
         val stringTypes = setOf("String")
         val paramName = param.name?.asString() ?: "unknown"
 
@@ -353,13 +353,13 @@ class KontractProcessor(
             when (annotation.shortName.asString()) {
                 "Min" -> {
                     if (typeName !in numericTypes) {
-                        logger.error("@Min is only valid for Int or Long types, but '$paramName' is $typeName.", param)
+                        logger.error("@Min is only valid for numeric types (Int, Long, Double, Float), but '$paramName' is $typeName.", param)
                     }
                     validations.add(ValidationInfo.Min(annotation.requireArg("value") as Long))
                 }
                 "Max" -> {
                     if (typeName !in numericTypes) {
-                        logger.error("@Max is only valid for Int or Long types, but '$paramName' is $typeName.", param)
+                        logger.error("@Max is only valid for numeric types (Int, Long, Double, Float), but '$paramName' is $typeName.", param)
                     }
                     validations.add(ValidationInfo.Max(annotation.requireArg("value") as Long))
                 }
@@ -371,7 +371,7 @@ class KontractProcessor(
                 }
                 "Size" -> {
                     if (typeName !in numericTypes + stringTypes) {
-                        logger.error("@Size is only valid for Int, Long, or String types, but '$paramName' is $typeName.", param)
+                        logger.error("@Size is only valid for numeric or String types, but '$paramName' is $typeName.", param)
                     }
                     validations.add(ValidationInfo.Size(
                         min = annotation.requireArg("min") as Int,
@@ -408,6 +408,18 @@ class KontractProcessor(
             typeName == "Long" && defaultValue.toLongOrNull() == null -> {
                 logger.error(
                     "@Default value '$defaultValue' is not a valid Long for '${param.name?.asString()}'.",
+                    param,
+                )
+            }
+            typeName == "Double" && defaultValue.toDoubleOrNull() == null -> {
+                logger.error(
+                    "@Default value '$defaultValue' is not a valid Double for '${param.name?.asString()}'.",
+                    param,
+                )
+            }
+            typeName == "Float" && defaultValue.toFloatOrNull() == null -> {
+                logger.error(
+                    "@Default value '$defaultValue' is not a valid Float for '${param.name?.asString()}'.",
                     param,
                 )
             }

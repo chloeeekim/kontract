@@ -1322,4 +1322,133 @@ class KontractCodeGeneratorTest {
 
         assertContains(code, """throw BadRequestException("Value for \"name\" is required")""")
     }
+
+    // --- Double/Float parsing ---
+
+    @Test
+    fun `should generate Double path param with toDoubleOrNull`() {
+        val code = generate(
+            listOf(param("lat", "Double", ParamSource.PATH)),
+            path = "/locations/:lat",
+        )
+
+        assertContains(code, """ctx.pathParam("lat")?.let { raw ->""")
+        assertContains(code, "raw.toDoubleOrNull()")
+        assertContains(code, """throw BadRequestException("Invalid value for path param 'lat':""")
+        assertContains(code, """throw BadRequestException("Missing path param: lat")""")
+    }
+
+    @Test
+    fun `should generate Float query param with toFloatOrNull`() {
+        val code = generate(
+            listOf(param("radius", "Float", ParamSource.QUERY)),
+        )
+
+        assertContains(code, """ctx.request().getParam("radius")?.let { raw ->""")
+        assertContains(code, "raw.toFloatOrNull()")
+        assertContains(code, """throw BadRequestException("Invalid value for query param 'radius':""")
+        assertContains(code, """throw BadRequestException("Missing query param: radius")""")
+    }
+
+    @Test
+    fun `should generate nullable Double query param`() {
+        val code = generate(
+            listOf(param("score", "Double", ParamSource.QUERY, nullable = true)),
+        )
+
+        assertContains(code, "raw.toDoubleOrNull()")
+        assertFalse(code.contains("Missing query param"))
+    }
+
+    @Test
+    fun `should generate Double with default value`() {
+        val code = generate(
+            listOf(param("threshold", "Double", ParamSource.QUERY, defaultValue = "0.5")),
+        )
+
+        assertContains(code, "toDoubleOrNull()")
+        assertContains(code, "?: 0.5")
+    }
+
+    @Test
+    fun `should generate Float with default value using f suffix`() {
+        val code = generate(
+            listOf(param("radius", "Float", ParamSource.QUERY, defaultValue = "5.0")),
+        )
+
+        assertContains(code, "toFloatOrNull()")
+        assertContains(code, "?: 5.0f")
+    }
+
+    @Test
+    fun `should generate @Min validation for Double`() {
+        val code = generate(
+            listOf(param("lat", "Double", ParamSource.QUERY,
+                validations = listOf(ValidationInfo.Min(0)))),
+        )
+
+        assertContains(code, """if (lat < 0)""")
+        assertContains(code, """"lat must be >= 0, but was ${'$'}lat"""")
+    }
+
+    @Test
+    fun `should generate @Max validation for Float`() {
+        val code = generate(
+            listOf(param("ratio", "Float", ParamSource.QUERY,
+                validations = listOf(ValidationInfo.Max(100)))),
+        )
+
+        assertContains(code, """if (ratio > 100)""")
+        assertContains(code, """"ratio must be <= 100, but was ${'$'}ratio"""")
+    }
+
+    @Test
+    fun `should generate @Size validation for Double`() {
+        val code = generate(
+            listOf(param("score", "Double", ParamSource.QUERY,
+                validations = listOf(ValidationInfo.Size(0, 100)))),
+        )
+
+        assertContains(code, """if (score < 0 || score > 100)""")
+    }
+
+    @Test
+    fun `should generate nullable @Min validation for Double with null check`() {
+        val code = generate(
+            listOf(param("lat", "Double", ParamSource.QUERY, nullable = true,
+                validations = listOf(ValidationInfo.Min(-90)))),
+        )
+
+        assertContains(code, """if (lat != null && lat < -90)""")
+    }
+
+    @Test
+    fun `should generate Double header param`() {
+        val code = generate(
+            listOf(param("quality", "Double", ParamSource.HEADER, annotationName = "X-Quality")),
+        )
+
+        assertContains(code, """ctx.request().getHeader("X-Quality")?.let { raw ->""")
+        assertContains(code, "raw.toDoubleOrNull()")
+    }
+
+    @Test
+    fun `should generate List Double query param`() {
+        val code = generate(
+            listOf(param("coords", "List", ParamSource.QUERY, isList = true, elementTypeName = "Double")),
+        )
+
+        assertContains(code, "toDoubleOrNull()")
+        assertContains(code, "Missing query param: coords")
+    }
+
+    @Test
+    fun `should generate List Float query param`() {
+        val code = generate(
+            listOf(param("weights", "List", ParamSource.QUERY, isList = true, elementTypeName = "Float")),
+        )
+
+        assertContains(code, "toFloatOrNull()")
+        assertContains(code, "Missing query param: weights")
+    }
 }

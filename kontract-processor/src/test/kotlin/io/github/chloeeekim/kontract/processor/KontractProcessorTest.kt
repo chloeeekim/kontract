@@ -798,7 +798,7 @@ class KontractProcessorTest {
 
         val (result, _) = compileWithResult(src)
 
-        assertContains(result.messages, "@Min is only valid for Int or Long types, but 'name' is String")
+        assertContains(result.messages, "@Min is only valid for numeric types (Int, Long, Double, Float), but 'name' is String")
     }
 
     @Test
@@ -1051,7 +1051,7 @@ class KontractProcessorTest {
 
         val (result, _) = compileWithResult(src)
 
-        assertContains(result.messages, "@Min is only valid for Int or Long types, but 'amount' is BigDecimal")
+        assertContains(result.messages, "@Min is only valid for numeric types (Int, Long, Double, Float), but 'amount' is BigDecimal")
     }
 
     @Test
@@ -1288,5 +1288,109 @@ class KontractProcessorTest {
         val (result, _) = compileWithResult(src)
 
         assertContains(result.messages, "@Required on @BodyParam 'body' is ignored")
+    }
+
+    // --- Double/Float support ---
+
+    @Test
+    fun `should generate Double path param parsing`() {
+        val generated = compileAndFindSource(
+            source("TestRequest", "@PathParam val lat: Double", path = "/locations/:lat"),
+            "TestRequestContract.kt",
+        )
+
+        assertContains(generated, "toDoubleOrNull()")
+        assertContains(generated, """throw BadRequestException("Missing path param: lat")""")
+    }
+
+    @Test
+    fun `should generate Float query param parsing`() {
+        val generated = compileAndFindSource(
+            source("TestRequest", "@QueryParam val radius: Float"),
+            "TestRequestContract.kt",
+        )
+
+        assertContains(generated, "toFloatOrNull()")
+        assertContains(generated, """throw BadRequestException("Missing query param: radius")""")
+    }
+
+    @Test
+    fun `should generate nullable Double query param`() {
+        val generated = compileAndFindSource(
+            source("TestRequest", "@QueryParam val score: Double?"),
+            "TestRequestContract.kt",
+        )
+
+        assertContains(generated, "toDoubleOrNull()")
+        assertFalse(generated.contains("Missing query param"))
+    }
+
+    @Test
+    fun `should generate Double with @Default`() {
+        val generated = compileAndFindSource(
+            source("TestRequest", """@QueryParam @Default("0.5") val threshold: Double"""),
+            "TestRequestContract.kt",
+        )
+
+        assertContains(generated, "toDoubleOrNull()")
+        assertContains(generated, "?: 0.5")
+    }
+
+    @Test
+    fun `should generate Double with @Min validation`() {
+        val generated = compileAndFindSource(
+            source("TestRequest", "@QueryParam @Min(0) val lat: Double"),
+            "TestRequestContract.kt",
+        )
+
+        assertContains(generated, "toDoubleOrNull()")
+        assertContains(generated, "if (lat < 0)")
+    }
+
+    @Test
+    fun `should error when @Default value is invalid Double`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "/test")
+            data class TestRequest(
+                @QueryParam @Default("abc") val score: Double,
+            )
+        """)
+
+        val (result, _) = compileWithResult(src)
+
+        assertContains(result.messages, "@Default value 'abc' is not a valid Double for 'score'")
+    }
+
+    @Test
+    fun `should generate Float @Default with f suffix`() {
+        val generated = compileAndFindSource(
+            source("TestRequest", """@QueryParam @Default("5.0") val radius: Float"""),
+            "TestRequestContract.kt",
+        )
+
+        assertContains(generated, "?: 5.0f")
+        assertFalse(generated.contains("?: 5.0\n"), "Float default must use f suffix, not bare Double literal")
+    }
+
+    @Test
+    fun `should error when @Default value is invalid Float`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "/test")
+            data class TestRequest(
+                @QueryParam @Default("not-a-number") val radius: Float,
+            )
+        """)
+
+        val (result, _) = compileWithResult(src)
+
+        assertContains(result.messages, "@Default value 'not-a-number' is not a valid Float for 'radius'")
     }
 }
