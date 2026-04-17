@@ -73,7 +73,7 @@ Recommended setup (use the Gradle plugin for zero-config setup):
 ```kotlin
 plugins {
     id("com.google.devtools.ksp") version "2.0.0-1.0.24"
-    id("io.github.chloeeekim.kontract") version "0.1.0-SNAPSHOT"
+    id("io.github.chloeeekim.kontract") version "0.1.0"
 }
 ```
 
