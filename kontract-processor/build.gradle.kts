@@ -3,12 +3,6 @@ plugins {
     signing
 }
 
-tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
-    compilerOptions {
-        freeCompilerArgs.add("-opt-in=org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi")
-    }
-}
-
 dependencies {
     implementation(project(":kontract-annotation"))
     implementation(libs.ksp.symbol.processing.api)
@@ -22,7 +16,7 @@ publishing {
     repositories {
         maven {
             name = "CentralPortal"
-            url = uri("https://central.sonatype.com/api/v1/publisher")
+            url = uri("https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/")
             credentials {
                 username = findProperty("mavenCentralUsername") as String?
                 password = findProperty("mavenCentralPassword") as String?
