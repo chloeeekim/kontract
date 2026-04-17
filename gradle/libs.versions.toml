@@ -6,6 +6,8 @@ jackson = "2.17.2"
 kotlinx-serialization = "1.6.3"
 junit-jupiter = "5.10.3"
 kctfork = "0.7.0"
+nexus-publish = "2.0.0"
+plugin-publish = "1.3.1"
 
 [libraries]
 vertx-core = { module = "io.vertx:vertx-core", version.ref = "vertx" }
@@ -24,3 +26,5 @@ kctfork-ksp = { module = "dev.zacsweers.kctfork:ksp", version.ref = "kctfork" }
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+nexus-publish = { id = "io.github.gradle-nexus.publish-plugin", version.ref = "nexus-publish" }
+plugin-publish = { id = "com.gradle.plugin-publish", version.ref = "plugin-publish" }

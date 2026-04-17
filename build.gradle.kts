@@ -5,7 +5,9 @@ plugins {
 
 allprojects {
     group = "io.github.chloeeekim"
-    version = "0.1.0-SNAPSHOT"
+    version = System.getenv("GITHUB_REF_NAME")
+        ?.removeSuffix("v")
+        ?: "0.1.0-SNAPSHOT"
 
     repositories {
         mavenCentral()
@@ -18,6 +20,8 @@ subprojects {
     configure<JavaPluginExtension> {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        withSourcesJar()
+        withJavadocJar()
     }
 
     tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
