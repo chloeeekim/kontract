@@ -19,10 +19,6 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Decode GPG key
-        run: |
-          echo "${{ secrets.GPG_SECRET_KEY }}" | base64 --decode > signing.key
-
       - name: Build & Publish to Maven Central
         run: ./gradlew clean build publish
         env:
@@ -45,10 +41,6 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
-
-      - name: Decode GPG key
-        run: |
-          echo "${{ secrets.GPG_SECRET_KEY }}" | base64 --decode > signing.key
 
       - name: Publish Gradle Plugin to Plugin Portal
         run: ./gradlew :gradle-plugin:publishPlugins
