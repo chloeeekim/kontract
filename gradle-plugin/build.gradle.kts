@@ -85,18 +85,17 @@ publishing {
 }
 
 signing {
-    val signingKeyId: String? = findProperty("signingKeyId") as String?
     val signingKey: String? = findProperty("signingKey") as String?
     val signingPassword: String? = findProperty("signingPassword") as String?
 
-    val isRelease = !project.version.toString().endsWith("-SNAPSHOT")
-
-    if (isRelease && signingKey != null) {
-        useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
+    if (!signingKey.isNullOrBlank() && !signingPassword.isNullOrBlank()) {
+        useInMemoryPgpKeys(signingKey, signingPassword)
         sign(publishing.publications.matching { it.name == "pluginMaven" })
     }
 }
 
-tasks.withType<Sign> {
-    onlyIf { !project.version.toString().endsWith("-SNAPSHOT") }
+tasks.withType<PublishToMavenRepository>().configureEach {
+    onlyIf {
+        !project.version.toString().endsWith("-SNAPSHOT")
+    }
 }
