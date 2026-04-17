@@ -337,6 +337,12 @@ class KontractProcessor(
                     param,
                 )
             }
+            typeName == "Boolean" && defaultValue.toBooleanStrictOrNull() == null -> {
+                logger.error(
+                    "@Default value '$defaultValue' is not a valid Boolean for '${param.name?.asString()}'. Allowed: true, false",
+                    param,
+                )
+            }
             isEnum -> {
                 val enumDecl = typeDecl as KSClassDeclaration
                 val entries = enumDecl.declarations

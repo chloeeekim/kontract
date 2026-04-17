@@ -127,6 +127,48 @@ class KontractProcessorTest {
         assertContains(generated, "?: 20")
     }
 
+    // --- Boolean tests ---
+
+    @Test
+    fun `should generate Boolean query param parsing`() {
+        val generated = compileAndFindSource(
+            source("TestRequest", "@QueryParam val verbose: Boolean"),
+            "TestRequestContract.kt",
+        )
+
+        assertContains(generated, "toBooleanStrictOrNull()")
+        assertContains(generated, "Missing query param: verbose")
+    }
+
+    @Test
+    fun `should generate Boolean with default value`() {
+        val generated = compileAndFindSource(
+            source("TestRequest", """@QueryParam @Default("false") val verbose: Boolean = false"""),
+            "TestRequestContract.kt",
+        )
+
+        assertContains(generated, "toBooleanStrictOrNull()")
+        assertContains(generated, "?: false")
+    }
+
+    @Test
+    fun `should error on invalid Boolean default value`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "/test")
+            data class TestRequest(
+                @QueryParam @Default("yes") val verbose: Boolean = false
+            )
+        """)
+
+        val (result, _) = compileWithResult(src)
+
+        assertContains(result.messages, "@Default value 'yes' is not a valid Boolean")
+    }
+
     // --- Enum tests ---
 
     @Test

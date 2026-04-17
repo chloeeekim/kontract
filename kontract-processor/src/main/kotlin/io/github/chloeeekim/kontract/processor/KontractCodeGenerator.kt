@@ -399,6 +399,7 @@ object KontractCodeGenerator {
 
         return when (param.typeName) {
             "Long", "Int" -> generateNumericParsing(param, paramName, extractor, paramKind)
+            "Boolean" -> generateBooleanParsing(param, paramName, extractor, paramKind)
             "String" -> generateStringParsing(param, paramName, extractor, paramKind)
             else -> error("Unsupported $paramKind param type: ${param.typeName}")
         }
@@ -439,6 +440,25 @@ object KontractCodeGenerator {
             """val ${param.name} = $extractor?.let { raw ->
     raw.$converter()
         ?: throw BadRequestException("Invalid value for $paramKind param '$paramName': '${'$'}raw'")
+}
+    $fallback""".trimEnd()
+        }
+    }
+
+    // --- Boolean ---
+
+    private fun generateBooleanParsing(param: ParamInfo, paramName: String, extractor: String, paramKind: String): String {
+        val fallback = generateMissingFallback(param, paramName, paramKind)
+
+        return if (fallback.isEmpty()) {
+            """val ${param.name} = $extractor?.let { raw ->
+    raw.toBooleanStrictOrNull()
+        ?: throw BadRequestException("Invalid value for $paramKind param '$paramName': '${'$'}raw'. Allowed: true, false")
+}"""
+        } else {
+            """val ${param.name} = $extractor?.let { raw ->
+    raw.toBooleanStrictOrNull()
+        ?: throw BadRequestException("Invalid value for $paramKind param '$paramName': '${'$'}raw'. Allowed: true, false")
 }
     $fallback""".trimEnd()
         }

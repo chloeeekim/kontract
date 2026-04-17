@@ -175,6 +175,38 @@ class KontractCodeGeneratorTest {
         assertContains(code, "import com.other.TestType")
     }
 
+    // --- Boolean parsing ---
+
+    @Test
+    fun `should generate Boolean query param with toBooleanStrictOrNull`() {
+        val code = generate(
+            listOf(param("verbose", "Boolean", ParamSource.QUERY)),
+        )
+
+        assertContains(code, "toBooleanStrictOrNull()")
+        assertContains(code, """throw BadRequestException("Invalid value for query param 'verbose'""")
+    }
+
+    @Test
+    fun `should generate nullable Boolean query param`() {
+        val code = generate(
+            listOf(param("verbose", "Boolean", ParamSource.QUERY, nullable = true)),
+        )
+
+        assertContains(code, "toBooleanStrictOrNull()")
+        assertFalse(code.contains("Missing query param"))
+    }
+
+    @Test
+    fun `should generate Boolean with default value`() {
+        val code = generate(
+            listOf(param("verbose", "Boolean", ParamSource.QUERY, defaultValue = "false")),
+        )
+
+        assertContains(code, "toBooleanStrictOrNull()")
+        assertContains(code, "?: false")
+    }
+
     // --- Default values ---
 
     @Test
