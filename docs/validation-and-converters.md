@@ -26,10 +26,10 @@ Validation code is generated at compile time and runs immediately after parsing.
 
 | Annotation | Target types | Description |
 |---|---|---|
-| `@Min(value)` | Int, Long | Minimum value |
-| `@Max(value)` | Int, Long | Maximum value |
+| `@Min(value)` | Int, Long, Float, Double | Minimum value |
+| `@Max(value)` | Int, Long, Float, Double | Maximum value |
 | `@NotBlank` | String | Must not be blank |
-| `@Size(min, max)` | Int, Long, String | Value range or string length |
+| `@Size(min, max)` | Int, Long, Float, Double, String | Value range or string length |
 | `@Pattern(regex)` | String | Regex matching |
 
 ```kotlin
@@ -44,7 +44,7 @@ data class ListItemRequest(
 
 ## Custom Type Converters
 
-For types beyond String/Int/Long/Enum, implement `ParamConverter<T>` and use `@TypeConverter`:
+For types beyond String/Int/Long/Float/Double/Enum, implement `ParamConverter<T>` and use `@TypeConverter`:
 
 ```kotlin
 class LocalDateConverter : ParamConverter<LocalDate> {
