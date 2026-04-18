@@ -10,6 +10,8 @@ data class GetUserRequest(
 )
 ```
 
+After you define or change the request data class, run Gradle so KSP generates the `*Contract` type (for example `./gradlew kspKotlin` or `./gradlew build`). Until that step succeeds, companion extensions such as `GetUserRequest.route` are not available because the contract class does not exist yet.
+
 ## 2. Use the generated Contract
 
 Recommended for most projects: use companion extensions (see step 3).

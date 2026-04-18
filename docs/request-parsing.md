@@ -18,6 +18,7 @@ When `name` is empty, the property name is used as the parameter name.
 |---|---|
 | `String` | Raw value |
 | `Int`, `Long` | `toIntOrNull()` / `toLongOrNull()` |
+| `Float`, `Double` | `toFloatOrNull()` / `toDoubleOrNull()` |
 | `Boolean` | `toBooleanStrictOrNull()` — only `"true"` / `"false"` accepted |
 | `Enum` | `valueOf()`, with optional `@EnumIgnoreCase` |
 | `List<T>` | Multi-value query param (`@QueryParam` only, see below) |
@@ -36,7 +37,7 @@ data class ListUserRequest(
 )
 ```
 
-Supported element types: `String`, `Int`, `Long`, `Boolean`, `Enum`.
+Supported element types: `String`, `Int`, `Long`, `Float`, `Double`, `Boolean`, `Enum`.
 `List<T>` is only supported for `@QueryParam`.
 `@Default` and `@TypeConverter` cannot be used with list parameters.
 

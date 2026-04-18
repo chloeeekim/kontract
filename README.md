@@ -85,6 +85,8 @@ More options: [`docs/installation.md`](docs/installation.md)
 
 Get started in 3 steps: define request, generate contract, register route.
 
+After you define or change the request data class, run Gradle so KSP generates the `*Contract` type (for example `./gradlew kspKotlin` or `./gradlew build`). Until that step succeeds, companion extensions such as `GetUserRequest.route` are not available because the contract class does not exist yet.
+
 ```kotlin
 @VertxEndpoint(method = HttpMethod.GET, path = "/users/:userId")
 data class GetUserRequest(
