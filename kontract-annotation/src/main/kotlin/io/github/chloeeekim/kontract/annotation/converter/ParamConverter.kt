@@ -1,4 +1,4 @@
-package io.github.chloeeekim.kontract.annotation
+package io.github.chloeeekim.kontract.annotation.converter
 
 /**
  * String 값을 커스텀 타입으로 변환하는 인터페이스.

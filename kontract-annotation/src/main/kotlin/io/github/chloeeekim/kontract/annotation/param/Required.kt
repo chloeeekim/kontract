@@ -1,4 +1,4 @@
-package io.github.chloeeekim.kontract.annotation
+package io.github.chloeeekim.kontract.annotation.param
 
 /**
  * Customizes the error message thrown when a non-null parameter is missing a value.

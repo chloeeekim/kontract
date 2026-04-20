@@ -1,4 +1,4 @@
-package io.github.chloeeekim.kontract.annotation
+package io.github.chloeeekim.kontract.annotation.param
 
 /**
  * When applied to an enum parameter, matching is case-insensitive.

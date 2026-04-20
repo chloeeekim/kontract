@@ -1,7 +1,7 @@
 package io.github.chloeeekim.kontract.sample
 
-import io.github.chloeeekim.kontract.annotation.KontractConfig
-import io.github.chloeeekim.kontract.annotation.KontractErrorHandler
+import io.github.chloeeekim.kontract.annotation.runtime.KontractConfig
+import io.github.chloeeekim.kontract.annotation.runtime.KontractErrorHandler
 import io.vertx.core.Vertx
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.web.Router

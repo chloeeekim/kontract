@@ -86,7 +86,7 @@ class KontractProcessorTest {
         )
 
         assertContains(generated, "package com.example")
-        assertContains(generated, "import io.github.chloeeekim.kontract.annotation.BadRequestException")
+        assertContains(generated, "import io.github.chloeeekim.kontract.annotation.runtime.BadRequestException")
         assertContains(generated, "import io.vertx.ext.web.RoutingContext")
     }
 
@@ -157,6 +157,9 @@ class KontractProcessorTest {
             package com.example
 
             import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
 
             @VertxEndpoint(method = HttpMethod.GET, path = "/test")
             data class TestRequest(
@@ -177,6 +180,9 @@ class KontractProcessorTest {
             package com.example
 
             import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
 
             @VertxEndpoint(method = HttpMethod.GET, path = "/test")
             data class TestRequest(
@@ -204,6 +210,9 @@ class KontractProcessorTest {
             package com.example
 
             import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
 
             @VertxEndpoint(method = HttpMethod.GET, path = "/test")
             data class TestRequest(
@@ -230,6 +239,9 @@ class KontractProcessorTest {
             package com.example
 
             import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
 
             @VertxEndpoint(method = HttpMethod.GET, path = "/test/:ids")
             data class TestRequest(
@@ -248,6 +260,9 @@ class KontractProcessorTest {
             package com.example
 
             import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
 
             @VertxEndpoint(method = HttpMethod.GET, path = "/test")
             data class TestRequest(
@@ -266,6 +281,9 @@ class KontractProcessorTest {
             package com.example
 
             import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
 
             enum class Status { ACTIVE, INACTIVE }
 
@@ -288,6 +306,9 @@ class KontractProcessorTest {
             package com.example
 
             import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
 
             enum class TestType { T1, T2, T3 }
 
@@ -310,6 +331,9 @@ class KontractProcessorTest {
             package com.example
 
             import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
 
             enum class TestType { T1, T2, T3 }
 
@@ -331,6 +355,9 @@ class KontractProcessorTest {
             package com.example
 
             import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
 
             enum class TestType { T1, T2, T3 }
 
@@ -352,6 +379,9 @@ class KontractProcessorTest {
             package com.example
 
             import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
 
             enum class SortOrder { ASC, DESC }
 
@@ -373,6 +403,9 @@ class KontractProcessorTest {
             package com.example
 
             import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
 
             enum class TestType { T1, T2, T3 }
             enum class SortOrder { ASC, DESC }
@@ -406,6 +439,9 @@ class KontractProcessorTest {
             package com.example
 
             import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
 
             @VertxEndpoint(method = HttpMethod.GET, path = "/items")
             data class ItemRequest(
@@ -424,6 +460,9 @@ class KontractProcessorTest {
             package com.example
 
             import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
 
             enum class SortOrder { ASC, DESC }
 
@@ -462,6 +501,9 @@ class KontractProcessorTest {
             package com.example
 
             import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
 
             @VertxEndpoint(method = HttpMethod.POST, path = "/users")
             data class CreateUserRequest(
@@ -506,6 +548,9 @@ class KontractProcessorTest {
             package com.example
 
             import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
 
             data class AuthPayload(
                 val macAddress: String,
@@ -534,6 +579,9 @@ class KontractProcessorTest {
             package com.example
 
             import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
 
             enum class TestType { T1, T2 }
 
@@ -556,6 +604,9 @@ class KontractProcessorTest {
             package com.example
 
             import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
 
             data class UserResponse(val id: Long, val name: String)
 
@@ -580,6 +631,9 @@ class KontractProcessorTest {
             package com.example
 
             import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
 
             data class UserResponse(val id: Long, val name: String)
 
@@ -615,6 +669,9 @@ class KontractProcessorTest {
             package com.example
 
             import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
 
             @VertxEndpoint(method = HttpMethod.GET, path = "/test/:id")
             data class TestRequest(
@@ -637,6 +694,9 @@ class KontractProcessorTest {
             package com.example
 
             import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
 
             data class UserResponse(val id: Long)
 
@@ -660,6 +720,9 @@ class KontractProcessorTest {
             package com.example
 
             import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
 
             @VertxEndpoint(method = HttpMethod.GET, path = "/test/:id")
             data class TestRequest(
@@ -682,6 +745,9 @@ class KontractProcessorTest {
             package com.example
 
             import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
 
             @VertxEndpoint(method = HttpMethod.GET, path = "/test/:id")
             data class TestRequest(
@@ -707,6 +773,9 @@ class KontractProcessorTest {
             package com.example
 
             import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
 
             data class EmptyResponse(val ok: Boolean)
 
@@ -734,6 +803,9 @@ class KontractProcessorTest {
             package com.example
 
             import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
 
             @VertxEndpoint(method = HttpMethod.GET, path = "/users/:userId")
             data class GetUserRequest(
@@ -789,6 +861,9 @@ class KontractProcessorTest {
             package com.example
 
             import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
 
             @VertxEndpoint(method = HttpMethod.GET, path = "/test")
             data class TestRequest(
@@ -807,6 +882,9 @@ class KontractProcessorTest {
             package com.example
 
             import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
 
             @VertxEndpoint(method = HttpMethod.GET, path = "/test")
             data class TestRequest(
@@ -827,6 +905,9 @@ class KontractProcessorTest {
             package com.example
 
             import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
 
             data class Payload(val data: String)
 
@@ -858,6 +939,9 @@ class KontractProcessorTest {
             package com.example
 
             import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
 
             data class Payload(val data: String)
 
@@ -872,274 +956,7 @@ class KontractProcessorTest {
         assertContains(result.messages, "@Default on @BodyParam 'body' is ignored")
     }
 
-    // --- @TypeConverter tests ---
-
-    @Test
-    fun `should generate contract with @TypeConverter on query param`() {
-        val src = SourceFile.kotlin("TestRequest.kt", """
-            package com.example
-
-            import io.github.chloeeekim.kontract.annotation.*
-            import io.github.chloeeekim.kontract.annotation.converter.LocalDateConverter
-            import java.time.LocalDate
-
-            @VertxEndpoint(method = HttpMethod.GET, path = "/events")
-            data class ListEventsRequest(
-                @QueryParam @TypeConverter(LocalDateConverter::class) val startDate: LocalDate,
-                @QueryParam @TypeConverter(LocalDateConverter::class) val endDate: LocalDate? = null,
-            )
-        """)
-
-        val generated = compileAndFindSource(src, "ListEventsRequestContract.kt")
-
-        assertContains(generated, "localDateConverter.convert(raw)")
-        assertContains(generated, "import io.github.chloeeekim.kontract.annotation.converter.LocalDateConverter")
-        assertContains(generated, "import java.time.LocalDate")
-        assertContains(generated, """throw BadRequestException("Missing query param: startDate")""")
-        assertTrue(!generated.contains("""throw BadRequestException("Missing query param: endDate")"""))
-    }
-
-    @Test
-    fun `should generate contract with @TypeConverter on path param`() {
-        val src = SourceFile.kotlin("TestRequest.kt", """
-            package com.example
-
-            import io.github.chloeeekim.kontract.annotation.*
-            import io.github.chloeeekim.kontract.annotation.converter.UUIDConverter
-            import java.util.UUID
-
-            @VertxEndpoint(method = HttpMethod.GET, path = "/items/:id")
-            data class GetItemRequest(
-                @PathParam @TypeConverter(UUIDConverter::class) val id: UUID,
-            )
-        """)
-
-        val generated = compileAndFindSource(src, "GetItemRequestContract.kt")
-
-        assertContains(generated, "uUIDConverter.convert(raw)")
-        assertContains(generated, """ctx.pathParam("id")?.let { raw ->""")
-    }
-
-    @Test
-    fun `should generate contract with @TypeConverter on header param`() {
-        val src = SourceFile.kotlin("TestRequest.kt", """
-            package com.example
-
-            import io.github.chloeeekim.kontract.annotation.*
-            import io.github.chloeeekim.kontract.annotation.converter.LocalDateConverter
-            import java.time.LocalDate
-
-            @VertxEndpoint(method = HttpMethod.GET, path = "/test")
-            data class TestRequest(
-                @HeaderParam(name = "X-Request-Date") @TypeConverter(LocalDateConverter::class) val requestDate: LocalDate? = null,
-            )
-        """)
-
-        val generated = compileAndFindSource(src, "TestRequestContract.kt")
-
-        assertContains(generated, """ctx.request().getHeader("X-Request-Date")?.let { raw ->""")
-        assertContains(generated, "localDateConverter.convert(raw)")
-    }
-
-    @Test
-    fun `should error when @TypeConverter used with @BodyParam`() {
-        val src = SourceFile.kotlin("TestRequest.kt", """
-            package com.example
-
-            import io.github.chloeeekim.kontract.annotation.*
-            import io.github.chloeeekim.kontract.annotation.converter.LocalDateConverter
-            import java.time.LocalDate
-
-            @VertxEndpoint(method = HttpMethod.POST, path = "/test")
-            data class TestRequest(
-                @BodyParam @TypeConverter(LocalDateConverter::class) val body: LocalDate,
-            )
-        """)
-
-        val (result, _) = compileWithResult(src)
-
-        assertContains(result.messages, "@TypeConverter on @BodyParam 'body' is not supported")
-    }
-
-    @Test
-    fun `should error when @TypeConverter used with @Default`() {
-        val src = SourceFile.kotlin("TestRequest.kt", """
-            package com.example
-
-            import io.github.chloeeekim.kontract.annotation.*
-            import io.github.chloeeekim.kontract.annotation.converter.LocalDateConverter
-            import java.time.LocalDate
-
-            @VertxEndpoint(method = HttpMethod.GET, path = "/test")
-            data class TestRequest(
-                @QueryParam @TypeConverter(LocalDateConverter::class) @Default("2026-01-01") val date: LocalDate,
-            )
-        """)
-
-        val (result, _) = compileWithResult(src)
-
-        assertContains(result.messages, "@Default on @TypeConverter parameter 'date' is not supported")
-    }
-
-    @Test
-    fun `should warn when @TypeConverter used on Enum type`() {
-        val src = SourceFile.kotlin("TestRequest.kt", """
-            package com.example
-
-            import io.github.chloeeekim.kontract.annotation.*
-            import io.github.chloeeekim.kontract.annotation.converter.LocalDateConverter
-
-            enum class Status { ACTIVE, INACTIVE }
-
-            @VertxEndpoint(method = HttpMethod.GET, path = "/test")
-            data class TestRequest(
-                @QueryParam @TypeConverter(LocalDateConverter::class) val status: Status,
-            )
-        """)
-
-        val (result, _) = compileWithResult(src)
-
-        assertContains(result.messages, "@TypeConverter on Enum type 'status' overrides built-in Enum parsing")
-    }
-
-    @Test
-    fun `should generate contract with multiple @TypeConverter params`() {
-        val src = SourceFile.kotlin("TestRequest.kt", """
-            package com.example
-
-            import io.github.chloeeekim.kontract.annotation.*
-            import io.github.chloeeekim.kontract.annotation.converter.LocalDateConverter
-            import io.github.chloeeekim.kontract.annotation.converter.UUIDConverter
-            import java.time.LocalDate
-            import java.util.UUID
-
-            @VertxEndpoint(method = HttpMethod.GET, path = "/reports/:id")
-            data class ReportRequest(
-                @PathParam @TypeConverter(UUIDConverter::class) val id: UUID,
-                @QueryParam @TypeConverter(LocalDateConverter::class) val startDate: LocalDate,
-                @QueryParam @TypeConverter(LocalDateConverter::class) val endDate: LocalDate? = null,
-                @QueryParam val limit: Int? = null,
-            )
-        """)
-
-        val generated = compileAndFindSource(src, "ReportRequestContract.kt")
-
-        assertContains(generated, "uUIDConverter.convert(raw)")
-        assertContains(generated, "localDateConverter.convert(raw)")
-        assertContains(generated, "import io.github.chloeeekim.kontract.annotation.converter.LocalDateConverter")
-        assertContains(generated, "import io.github.chloeeekim.kontract.annotation.converter.UUIDConverter")
-        assertContains(generated, "import java.util.UUID")
-        assertContains(generated, "import java.time.LocalDate")
-        // limit은 기본 Int 파싱
-        assertContains(generated, "raw.toIntOrNull()")
-    }
-
-    @Test
-    fun `should error when @Min used with @TypeConverter custom type`() {
-        val src = SourceFile.kotlin("TestRequest.kt", """
-            package com.example
-
-            import io.github.chloeeekim.kontract.annotation.*
-            import io.github.chloeeekim.kontract.annotation.converter.BigDecimalConverter
-            import java.math.BigDecimal
-
-            @VertxEndpoint(method = HttpMethod.GET, path = "/payments")
-            data class PaymentRequest(
-                @QueryParam @TypeConverter(BigDecimalConverter::class) @Min(0) val amount: BigDecimal,
-            )
-        """)
-
-        val (result, _) = compileWithResult(src)
-
-        assertContains(result.messages, "@Min is only valid for numeric types (Int, Long, Double, Float), but 'amount' is BigDecimal")
-    }
-
-    @Test
-    fun `should error when @NotBlank used with @TypeConverter custom type`() {
-        val src = SourceFile.kotlin("TestRequest.kt", """
-            package com.example
-
-            import io.github.chloeeekim.kontract.annotation.*
-            import io.github.chloeeekim.kontract.annotation.converter.UUIDConverter
-            import java.util.UUID
-
-            @VertxEndpoint(method = HttpMethod.GET, path = "/test")
-            data class TestRequest(
-                @QueryParam @TypeConverter(UUIDConverter::class) @NotBlank val id: UUID,
-            )
-        """)
-
-        val (result, _) = compileWithResult(src)
-
-        assertContains(result.messages, "@NotBlank is only valid for String types, but 'id' is UUID")
-    }
-
-    // --- helpers ---
-
-    private fun source(className: String, params: String, path: String = "/test"): SourceFile {
-        return SourceFile.kotlin("$className.kt", """
-            package com.example
-
-            import io.github.chloeeekim.kontract.annotation.*
-
-            @VertxEndpoint(method = HttpMethod.GET, path = "$path")
-            data class $className(
-                $params
-            )
-        """)
-    }
-
-    private fun compileAndFindSource(source: SourceFile, fileName: String): String {
-        val (_, compilation) = compileWithResult(source)
-        return findGeneratedSource(compilation, fileName)
-    }
-
-    private fun compileWithResult(vararg sources: SourceFile): Pair<JvmCompilationResult, KotlinCompilation> {
-        val compilation = KotlinCompilation().apply {
-            this.sources = sources.toList()
-            inheritClassPath = true
-            configureKsp(useKsp2 = true) {
-                symbolProcessorProviders += KontractProcessorProvider()
-            }
-        }
-        val result = compilation.compile()
-        return Pair(result, compilation)
-    }
-
-    private fun findGeneratedSource(compilation: KotlinCompilation, fileName: String): String {
-        val generatedFiles = compilation.kspSourcesDir
-            .walkTopDown()
-            .filter { it.isFile && it.extension == "kt" }
-            .toList()
-        val file = generatedFiles.firstOrNull { it.name == fileName }
-        assertTrue(
-            file != null,
-            "Expected generated file '$fileName' not found. Generated: ${generatedFiles.map { it.name }}"
-        )
-        return file.readText()
-    }
-
-    private fun compileKotlinxWithResponse(responseDecl: String, endpointAnnotation: String): JvmCompilationResult {
-        val src = SourceFile.kotlin("TestRequest.kt", """
-            package com.example
-
-            import io.github.chloeeekim.kontract.annotation.*
-
-            $responseDecl
-
-            $endpointAnnotation
-            data class TestRequest(@PathParam val id: Long)
-        """)
-        val compilation = KotlinCompilation().apply {
-            sources = listOf(src)
-            inheritClassPath = true
-            configureKsp(useKsp2 = true) {
-                symbolProcessorProviders += KontractProcessorProvider()
-            }
-            kspProcessorOptions = mutableMapOf("kontract.serializer" to "kotlinx")
-        }
-        return compilation.compile()
-    }
+    // --- Serialization Option ---
 
     @Test
     fun `should warn when kotlinx response type is an interface`() {
@@ -1180,6 +997,9 @@ class KontractProcessorTest {
             package com.example
 
             import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
 
             interface TestResponse
 
@@ -1191,6 +1011,224 @@ class KontractProcessorTest {
         assertFalse(result.messages.contains("kotlinx.serialization requires concrete @Serializable types"))
     }
 
+    // --- @TypeConverter tests ---
+
+    @Test
+    fun `should generate contract with @TypeConverter on query param`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
+            import java.time.LocalDate
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "/events")
+            data class ListEventsRequest(
+                @QueryParam @TypeConverter(LocalDateConverter::class) val startDate: LocalDate,
+                @QueryParam @TypeConverter(LocalDateConverter::class) val endDate: LocalDate? = null,
+            )
+        """)
+
+        val generated = compileAndFindSource(src, "ListEventsRequestContract.kt")
+
+        assertContains(generated, "localDateConverter.convert(raw)")
+        assertContains(generated, "import io.github.chloeeekim.kontract.annotation.converter.LocalDateConverter")
+        assertContains(generated, "import java.time.LocalDate")
+        assertContains(generated, """throw BadRequestException("Missing query param: startDate")""")
+        assertTrue(!generated.contains("""throw BadRequestException("Missing query param: endDate")"""))
+    }
+
+    @Test
+    fun `should generate contract with @TypeConverter on path param`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
+            import java.util.UUID
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "/items/:id")
+            data class GetItemRequest(
+                @PathParam @TypeConverter(UUIDConverter::class) val id: UUID,
+            )
+        """)
+
+        val generated = compileAndFindSource(src, "GetItemRequestContract.kt")
+
+        assertContains(generated, "uUIDConverter.convert(raw)")
+        assertContains(generated, """ctx.pathParam("id")?.let { raw ->""")
+    }
+
+    @Test
+    fun `should generate contract with @TypeConverter on header param`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
+            import java.time.LocalDate
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "/test")
+            data class TestRequest(
+                @HeaderParam(name = "X-Request-Date") @TypeConverter(LocalDateConverter::class) val requestDate: LocalDate? = null,
+            )
+        """)
+
+        val generated = compileAndFindSource(src, "TestRequestContract.kt")
+
+        assertContains(generated, """ctx.request().getHeader("X-Request-Date")?.let { raw ->""")
+        assertContains(generated, "localDateConverter.convert(raw)")
+    }
+
+    @Test
+    fun `should error when @TypeConverter used with @BodyParam`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
+            import java.time.LocalDate
+
+            @VertxEndpoint(method = HttpMethod.POST, path = "/test")
+            data class TestRequest(
+                @BodyParam @TypeConverter(LocalDateConverter::class) val body: LocalDate,
+            )
+        """)
+
+        val (result, _) = compileWithResult(src)
+
+        assertContains(result.messages, "@TypeConverter on @BodyParam 'body' is not supported")
+    }
+
+    @Test
+    fun `should error when @TypeConverter used with @Default`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
+            import java.time.LocalDate
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "/test")
+            data class TestRequest(
+                @QueryParam @TypeConverter(LocalDateConverter::class) @Default("2026-01-01") val date: LocalDate,
+            )
+        """)
+
+        val (result, _) = compileWithResult(src)
+
+        assertContains(result.messages, "@Default on @TypeConverter parameter 'date' is not supported")
+    }
+
+    @Test
+    fun `should warn when @TypeConverter used on Enum type`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
+
+            enum class Status { ACTIVE, INACTIVE }
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "/test")
+            data class TestRequest(
+                @QueryParam @TypeConverter(LocalDateConverter::class) val status: Status,
+            )
+        """)
+
+        val (result, _) = compileWithResult(src)
+
+        assertContains(result.messages, "@TypeConverter on Enum type 'status' overrides built-in Enum parsing")
+    }
+
+    @Test
+    fun `should generate contract with multiple @TypeConverter params`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
+            import java.time.LocalDate
+            import java.util.UUID
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "/reports/:id")
+            data class ReportRequest(
+                @PathParam @TypeConverter(UUIDConverter::class) val id: UUID,
+                @QueryParam @TypeConverter(LocalDateConverter::class) val startDate: LocalDate,
+                @QueryParam @TypeConverter(LocalDateConverter::class) val endDate: LocalDate? = null,
+                @QueryParam val limit: Int? = null,
+            )
+        """)
+
+        val generated = compileAndFindSource(src, "ReportRequestContract.kt")
+
+        assertContains(generated, "uUIDConverter.convert(raw)")
+        assertContains(generated, "localDateConverter.convert(raw)")
+        assertContains(generated, "import io.github.chloeeekim.kontract.annotation.converter.LocalDateConverter")
+        assertContains(generated, "import io.github.chloeeekim.kontract.annotation.converter.UUIDConverter")
+        assertContains(generated, "import java.util.UUID")
+        assertContains(generated, "import java.time.LocalDate")
+        assertContains(generated, "raw.toIntOrNull()")
+    }
+
+    @Test
+    fun `should error when @Min used with @TypeConverter custom type`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
+            import java.math.BigDecimal
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "/payments")
+            data class PaymentRequest(
+                @QueryParam @TypeConverter(BigDecimalConverter::class) @Min(0) val amount: BigDecimal,
+            )
+        """)
+
+        val (result, _) = compileWithResult(src)
+
+        assertContains(result.messages, "@Min is only valid for numeric types (Int, Long, Double, Float), but 'amount' is BigDecimal")
+    }
+
+    @Test
+    fun `should error when @NotBlank used with @TypeConverter custom type`() {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
+            import java.util.UUID
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "/test")
+            data class TestRequest(
+                @QueryParam @TypeConverter(UUIDConverter::class) @NotBlank val id: UUID,
+            )
+        """)
+
+        val (result, _) = compileWithResult(src)
+
+        assertContains(result.messages, "@NotBlank is only valid for String types, but 'id' is UUID")
+    }
+
     // --- Coroutine support ---
 
     @Test
@@ -1199,6 +1237,9 @@ class KontractProcessorTest {
             package com.example
 
             import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
 
             @VertxEndpoint(method = HttpMethod.GET, path = "/test/:id")
             data class TestRequest(@PathParam val id: Long)
@@ -1249,6 +1290,9 @@ class KontractProcessorTest {
             package com.example
 
             import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
 
             @VertxEndpoint(method = HttpMethod.GET, path = "/test")
             data class TestRequest(@QueryParam @Required("keyword is required") val keyword: String?)
@@ -1264,6 +1308,9 @@ class KontractProcessorTest {
             package com.example
 
             import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
 
             @VertxEndpoint(method = HttpMethod.GET, path = "/test")
             data class TestRequest(@QueryParam @Required("limit is required") @Default("10") val limit: Int)
@@ -1279,6 +1326,9 @@ class KontractProcessorTest {
             package com.example
 
             import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
 
             data class Payload(val data: String)
 
@@ -1353,6 +1403,9 @@ class KontractProcessorTest {
             package com.example
 
             import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
 
             @VertxEndpoint(method = HttpMethod.GET, path = "/test")
             data class TestRequest(
@@ -1382,6 +1435,9 @@ class KontractProcessorTest {
             package com.example
 
             import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
 
             @VertxEndpoint(method = HttpMethod.GET, path = "/test")
             data class TestRequest(
@@ -1392,5 +1448,78 @@ class KontractProcessorTest {
         val (result, _) = compileWithResult(src)
 
         assertContains(result.messages, "@Default value 'not-a-number' is not a valid Float for 'radius'")
+    }
+
+    // --- helpers ---
+
+    private fun source(className: String, params: String, path: String = "/test"): SourceFile {
+        return SourceFile.kotlin("$className.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
+
+            @VertxEndpoint(method = HttpMethod.GET, path = "$path")
+            data class $className(
+                $params
+            )
+        """)
+    }
+
+    private fun compileAndFindSource(source: SourceFile, fileName: String): String {
+        val (_, compilation) = compileWithResult(source)
+        return findGeneratedSource(compilation, fileName)
+    }
+
+    private fun compileWithResult(vararg sources: SourceFile): Pair<JvmCompilationResult, KotlinCompilation> {
+        val compilation = KotlinCompilation().apply {
+            this.sources = sources.toList()
+            inheritClassPath = true
+            configureKsp(useKsp2 = true) {
+                symbolProcessorProviders += KontractProcessorProvider()
+            }
+        }
+        val result = compilation.compile()
+        return Pair(result, compilation)
+    }
+
+    private fun findGeneratedSource(compilation: KotlinCompilation, fileName: String): String {
+        val generatedFiles = compilation.kspSourcesDir
+            .walkTopDown()
+            .filter { it.isFile && it.extension == "kt" }
+            .toList()
+        val file = generatedFiles.firstOrNull { it.name == fileName }
+        assertTrue(
+            file != null,
+            "Expected generated file '$fileName' not found. Generated: ${generatedFiles.map { it.name }}"
+        )
+        return file.readText()
+    }
+
+    private fun compileKotlinxWithResponse(responseDecl: String, endpointAnnotation: String): JvmCompilationResult {
+        val src = SourceFile.kotlin("TestRequest.kt", """
+            package com.example
+
+            import io.github.chloeeekim.kontract.annotation.*
+            import io.github.chloeeekim.kontract.annotation.param.*
+            import io.github.chloeeekim.kontract.annotation.validation.*
+            import io.github.chloeeekim.kontract.annotation.converter.*
+
+            $responseDecl
+
+            $endpointAnnotation
+            data class TestRequest(@PathParam val id: Long)
+        """)
+        val compilation = KotlinCompilation().apply {
+            sources = listOf(src)
+            inheritClassPath = true
+            configureKsp(useKsp2 = true) {
+                symbolProcessorProviders += KontractProcessorProvider()
+            }
+            kspProcessorOptions = mutableMapOf("kontract.serializer" to "kotlinx")
+        }
+        return compilation.compile()
     }
 }

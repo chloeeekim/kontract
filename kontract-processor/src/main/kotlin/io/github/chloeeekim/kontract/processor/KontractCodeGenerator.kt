@@ -144,8 +144,8 @@ object KontractCodeGenerator {
         coroutines: Boolean = false,
     ): Set<String> {
         val imports = mutableSetOf(
-            "io.github.chloeeekim.kontract.annotation.BadRequestException",
-            "io.github.chloeeekim.kontract.annotation.KontractConfig",
+            "io.github.chloeeekim.kontract.annotation.runtime.BadRequestException",
+            "io.github.chloeeekim.kontract.annotation.runtime.KontractConfig",
             "io.vertx.ext.web.Router",
             "io.vertx.ext.web.RoutingContext",
         )
