@@ -171,7 +171,7 @@ class KontractCodeGeneratorTest {
         )
 
         assertContains(code, "package com.example")
-        assertContains(code, "import io.github.chloeeekim.kontract.annotation.BadRequestException")
+        assertContains(code, "import io.github.chloeeekim.kontract.annotation.runtime.BadRequestException")
         assertContains(code, "import io.vertx.ext.web.Router")
         assertContains(code, "import io.vertx.ext.web.RoutingContext")
     }
@@ -611,7 +611,7 @@ class KontractCodeGeneratorTest {
             path = "/test/:id",
         )
 
-        assertContains(code, "import io.github.chloeeekim.kontract.annotation.KontractConfig")
+        assertContains(code, "import io.github.chloeeekim.kontract.annotation.runtime.KontractConfig")
     }
 
     // --- Coroutine support ---

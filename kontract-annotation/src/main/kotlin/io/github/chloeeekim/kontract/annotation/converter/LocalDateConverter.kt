@@ -1,6 +1,5 @@
 package io.github.chloeeekim.kontract.annotation.converter
 
-import io.github.chloeeekim.kontract.annotation.ParamConverter
 import java.time.LocalDate
 
 class LocalDateConverter : ParamConverter<LocalDate> {

@@ -1,4 +1,4 @@
-package io.github.chloeeekim.kontract.annotation
+package io.github.chloeeekim.kontract.annotation.runtime
 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows

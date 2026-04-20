@@ -1,4 +1,4 @@
-package io.github.chloeeekim.kontract.annotation
+package io.github.chloeeekim.kontract.annotation.runtime
 
 class BadRequestException(
     override val message: String,

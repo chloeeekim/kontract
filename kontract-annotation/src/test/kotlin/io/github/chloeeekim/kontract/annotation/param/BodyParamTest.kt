@@ -1,4 +1,4 @@
-package io.github.chloeeekim.kontract.annotation
+package io.github.chloeeekim.kontract.annotation.param
 
 import org.junit.jupiter.api.Test
 import kotlin.test.assertTrue
