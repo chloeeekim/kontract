@@ -9,8 +9,7 @@ on:
       - main
 
 jobs:
-  pr-test:
-    if: github.event_name == 'pull_request'
+  ci:
     runs-on: ubuntu-latest
 
     steps:
@@ -26,33 +25,18 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Run tests
-        run: ./gradlew test --continue --no-daemon
+      - name: Run CI command by event
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            ./gradlew test --continue --no-daemon
+          else
+            ./gradlew assemble --no-daemon
+          fi
 
       - name: Upload test reports
-        if: failure()
+        if: failure() && github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: pr-test-reports
           path: '**/build/reports/tests/test/**'
           retention-days: 7
-
-  main-build:
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: "17"
-          distribution: "temurin"
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Run build
-        run: ./gradlew build --no-daemon
