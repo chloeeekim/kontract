@@ -20,7 +20,7 @@ Apply **both** the KSP plugin and the Kontract plugin in the same module where y
 // build.gradle.kts
 plugins {
     id("com.google.devtools.ksp") version "2.0.0-1.0.24"
-    id("io.github.chloeeekim.kontract") version "0.1.0"
+    id("io.github.chloeeekim.kontract") version "0.2.0"
 }
 
 dependencies {
